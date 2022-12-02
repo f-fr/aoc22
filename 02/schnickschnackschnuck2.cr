@@ -19,12 +19,18 @@ total_score = ARGF.each_line.map do |line|
   toks = line.split
   raise "Invalid line" if toks.size < 2 # I like error handling
   opp, outcome = toks
-  opp = (opp[0]? || raise "Missing opponent") - 'A'
+  opp = case opp
+        when "A" then 0
+        when "B" then 1
+        when "C" then 2
+        else raise "Invalid opponent"
+        end
 
   case outcome
   when "X" then (opp - 1) % 3 + 1       # loose
   when "Y" then opp + 1 + 3             # draw
-  else          (opp + 1) % 3 + 1 + 6   # win
+  when "Z" then (opp + 1) % 3 + 1 + 6   # win
+  else raise "Invalid outcome: #{outcome}"
   end
 end.sum
 
