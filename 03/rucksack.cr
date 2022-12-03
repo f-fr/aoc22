@@ -16,9 +16,7 @@
 # along with this program.  If not, see  <http://www.gnu.org/licenses/>
 
 score = ARGF.each_line.map do |line|
-  n = line.size // 2
-  left, right = line[0,n].chars.to_set, line[n,n].chars.to_set
-  p = (left & right).to_a[0]
+  p = line.chars.each_slice(line.size // 2).map(&.to_set).reduce{|a,b| a&b}.to_a[0]
   case p
   when 'a'..'z' then p - 'a' + 1
   when 'A'..'Z' then p - 'A' + 27
