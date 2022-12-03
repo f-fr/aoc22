@@ -16,7 +16,9 @@
 # along with this program.  If not, see  <http://www.gnu.org/licenses/>
 
 total_score = ARGF.each_line.map do |line|
-  opp, outcome = line.split
+  toks = line.split
+  raise "Invalid line" if toks.size < 2 # I like error handling
+  opp, outcome = toks
   opp = (opp[0]? || raise "Missing opponent") - 'A'
 
   case outcome
