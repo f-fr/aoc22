@@ -17,14 +17,15 @@
 
 score1 = 0
 score2 = 0
-ARGF.each_line do |line|
+while line = ARGF.gets(1024)
+  raise "Line too long" if line.size == 1024
+
   # with regex
-  m = line.match(/(\d+)-(\d+),(\d+)-(\d+)/) || next
+  m = line.match(/^\s*(\d+)\s*-\s*(\d+)\s*,\s*(\d+)\s*-\s*(\d+)\s*$/) || raise "Invalid line"
   a, b, x, y = {1,2,3,4}.map{|i| m[i].to_i}
 
-  # # with split, more temporary arrays
-  # m = line.split(',').map(&.split('-')).flatten.map(&.to_i)
-  # a, b, x, y = {0,1,2,3}.map{|i| m[i].to_i}
+  # # # with split, more temporary arrays
+  # a, b, x, y = line.split(',').map(&.split('-')).flatten.map(&.to_i)
 
   score1 += 1 if a <= x <= y <= b || x <= a <= b <= y
   score2 += 1 if a <= y && x <= b
