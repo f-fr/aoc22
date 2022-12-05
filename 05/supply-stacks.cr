@@ -24,7 +24,7 @@ ARGF.each_line(1024, chomp: true) do |line|
     break
   elsif line =~ /^\s*\d+(\s+\d+)*\s*$/
     stacks = line.each_char.with_index.select(&.[0].number?).map(&.[1]).map {|i|
-      lines.compact_map(&.[i]?).select(&.letter?).to_a.reverse!
+      lines.each.compact_map(&.[i]?).select(&.letter?).to_a.reverse!
     }.to_a
   else
     lines << line
