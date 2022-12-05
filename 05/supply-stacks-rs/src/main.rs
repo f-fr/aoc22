@@ -73,14 +73,23 @@ fn main() -> Result<(), Box<dyn Error>> {
         if !toks.next().map(|s| s == "from").unwrap_or(false) {
             Err("Missing 'move'")?
         }
-        let from = toks.next().ok_or("Missing from stack")?.parse::<usize>().map_err(|_| "Invalid from stack")? - 1;
+        let from = toks.next().ok_or("Missing from stack")?.parse::<usize>().map_err(|_| "Invalid from stack")?;
+        if from < 1 || from > stacks.len() {
+            Err("Invalid from stack number")?;
+        }
         if !toks.next().map(|s| s == "to").unwrap_or(false) {
             Err("Missing 'to'")?
         }
-        let to = toks.next().ok_or("Missing to stack")?.parse::<usize>().map_err(|_| "Invalid to stack")? - 1;
+        let to = toks.next().ok_or("Missing to stack")?.parse::<usize>().map_err(|_| "Invalid to stack")?;
+        if to < 1 || to > stacks.len() {
+            Err("Invalid to stack number")?;
+        }
         if toks.next().is_some() {
             Err("Invalid characters at eol")?
         }
+
+        let from = from - 1;
+        let to = to - 1;
 
         for _ in 0..n {
             let x = stacks[from].pop().ok_or("Empty stack")?;
