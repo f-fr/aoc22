@@ -99,7 +99,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     for (name, st) in [(9000, stacks), (9001, stacks2)] {
-        println!("CrateMover {}: {}", name, st.into_iter().filter_map(|s| s.last().cloned()).collect::<String>());
+        println!("CrateMover {}: {}", name, st.iter().filter_map(|s| s.last()).collect::<String>());
     }
 
     Ok(())
