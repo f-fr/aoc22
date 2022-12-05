@@ -15,32 +15,24 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see  <http://www.gnu.org/licenses/>
 
+lines = [] of String
 stacks = [] of Array(Char)
 ARGF.each_line do |line|
-  break if line.empty?
-  1.step(to: line.size, by: 4, exclusive: true) do |i|
-    j = i//4
-    case line[i]
-    when 'A'..'Z'
-      while stacks.size <= j
-        stacks << [] of Char
-      end
-      stacks[j] << line[i]
-    when '1'..'9'
-      raise "Unexpected stack number: #{line[i].to_i}" if j+1 != line[i].to_i
-    when ' '
-      nil
-    else
-      raise "Invalid line: #{line}"
-    end
+  if line.empty?
+    break
+  elsif line =~ /^\s*\d+(\s+\d+)*\s*$/
+    stacks = line.each_char.with_index.select(&.[0].number?).map(&.[1]).map {|i|
+      lines.compact_map(&.[i]?).select(&.letter?).to_a.reverse!
+    }.to_a
+  else
+    lines << line
   end
 end
 
-stacks.each(&.reverse!)
 stacks2 = stacks.clone
 
 ARGF.each_line do |line|
-  m = /move\s+(\d+)\s+from\s+(\d+)\s+to\s+(\d+)/.match(line) || raise "Invalid line"
+  m = /^\s*move\s+(\d+)\s+from\s+(\d+)\s+to\s+(\d+)\s*$/.match(line) || raise "Invalid line"
   n = m[1].to_i
   from = m[2].to_i - 1
   to = m[3].to_i - 1
