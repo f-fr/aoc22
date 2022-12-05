@@ -44,5 +44,5 @@ ARGF.each_line(1024, chomp: true) do |line|
   stacks2[to].concat stacks2[from].pop(n)
 end
 
-puts "CrateMover 9000: #{stacks.map(&.last).join}"
-puts "CrateMover 9001: #{stacks2.map(&.last).join}"
+puts "CrateMover 9000: #{stacks.compact_map(&.last?).join}"
+puts "CrateMover 9001: #{stacks2.compact_map(&.last?).join}"
