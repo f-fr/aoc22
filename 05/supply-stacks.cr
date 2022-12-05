@@ -37,8 +37,8 @@ ARGF.each_line(1024, chomp: true) do |line|
   raise "Line too long" if line.size == 1024
   m = /^\s*move\s+(\d+)\s+from\s+(\d+)\s+to\s+(\d+)\s*$/.match(line) || raise "Invalid line"
   n = m[1].to_i
-  from = m[2].to_i - 1
-  to = m[3].to_i - 1
+  from = m[2].to_i - 1; raise "Invalid from stack number" unless 0 <= from < stacks.size
+  to = m[3].to_i - 1;   raise "Invalid to stack number"   unless 0 <= to   < stacks.size
 
   n.times { stacks[to].push stacks[from].pop }
   stacks2[to].concat stacks2[from].pop(n)
