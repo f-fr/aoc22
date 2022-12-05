@@ -98,8 +98,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         stacks2[to].append(&mut xs);
     }
 
-    println!("CrateMover 9000: {}", stacks.into_iter().map(|s| *s.last().unwrap()).collect::<String>());
-    println!("CrateMover 9001: {}", stacks2.into_iter().map(|s| *s.last().unwrap()).collect::<String>());
+    for (name, st) in [(9000, stacks), (9001, stacks2)] {
+        println!("CrateMover {}: {}", name, st.into_iter().filter_map(|s| s.last().cloned()).collect::<String>());
+    }
 
     Ok(())
 }
