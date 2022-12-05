@@ -17,8 +17,10 @@
 
 lines = [] of String
 stacks = [] of Array(Char)
-ARGF.each_line do |line|
-  if line.empty?
+while line = ARGF.gets(1024, chomp: true)
+  if line.size == 1024
+    raise "Line too long"
+  elsif line.empty?
     break
   elsif line =~ /^\s*\d+(\s+\d+)*\s*$/
     stacks = line.each_char.with_index.select(&.[0].number?).map(&.[1]).map {|i|
@@ -31,7 +33,8 @@ end
 
 stacks2 = stacks.clone
 
-ARGF.each_line do |line|
+while line = ARGF.gets(1024, chomp: true)
+  raise "Line too long" if line.size == 1024
   m = /^\s*move\s+(\d+)\s+from\s+(\d+)\s+to\s+(\d+)\s*$/.match(line) || raise "Invalid line"
   n = m[1].to_i
   from = m[2].to_i - 1
