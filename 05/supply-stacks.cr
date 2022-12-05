@@ -17,7 +17,7 @@
 
 lines = [] of String
 stacks = [] of Array(Char)
-while line = ARGF.gets(1024, chomp: true)
+ARGF.each_line(1024, chomp: true) do |line|
   if line.size == 1024
     raise "Line too long"
   elsif line.empty?
@@ -33,7 +33,7 @@ end
 
 stacks2 = stacks.clone
 
-while line = ARGF.gets(1024, chomp: true)
+ARGF.each_line(1024, chomp: true) do |line|
   raise "Line too long" if line.size == 1024
   m = /^\s*move\s+(\d+)\s+from\s+(\d+)\s+to\s+(\d+)\s*$/.match(line) || raise "Invalid line"
   n = m[1].to_i
