@@ -16,45 +16,32 @@
 # along with this program.  If not, see  <http://www.gnu.org/licenses/>
 
 cur_dir = [] of String
-files = Hash(Array(String), Array({String, Int32})).new { |h,k| h[k] = [] of {String, Int32} }
+dir_sizes = Hash(String, Int32).new(0)
 ls = nil
 ARGF.each_line do |line|
-  if line =~ /^\$\s+/
-    ls = nil
-    case line
-    when /^\$\s+cd\s+\// then cur_dir.clear
-    when /^\$\s+cd\s+\.\./ then cur_dir.pop
-    when /^\$\s+cd\s+(\w+)/ then cur_dir.push $1
-    when /^\$\s+ls/ then ls = cur_dir.dup
-    else
-      raise "Unexpected command: #{line}"
-    end
-  elsif ls
-    case line
-    when /^dir\s+(\S+)/
-      # do nothing (just a subdir)
-    when /^(\d+)\s+(\S+)/
-      files[ls] << {$2, $1.to_i}
-    else
-      raise "Unexpected line: #{line}"
-    end
+  case line
+  when /^\$\s+cd\s+\/\s*$/ then cur_dir.clear
+  when /^\$\s+cd\s+\.\.\s*$/ then cur_dir.pop
+  when /^\$\s+cd\s+(\S+)\s*$/ then cur_dir.push $1
+  when /^\$\s+ls\s*$/ then ls = cur_dir.join('/')
+  when /^dir\s+(\S+)\s*$/ # do nothing (just a subdir)
+  when /^(\d+)\s+(\S+)\s*$/ then dir_sizes.update(ls.not_nil!, &.+ $1.to_i)
+  else raise "Unexpected line: #{line}"
   end
 end
 
-dir_sizes = Hash(String, Int32).new(0)
-files.each do |dir, fs|
-  dir_size = fs.each.map(&.[1]).sum
-  d = dir.dup
+total_sizes = Hash(String, Int32).new(0)
+dir_sizes.each do |dir, dir_size|
+  path = dir.split("/", remove_empty: true)
   loop do
-    dir_sizes[d.join("/")] += dir_size
-    break if d.empty?
-    d.pop
+    total_sizes.update(path.join("/"), &.+ dir_size)
+    break unless path.pop?
   end
 end
 
-puts "sum of total sizes ≤ 100000: %s" % dir_sizes.each.select(&.[1].<= 100_000).map(&.[1]).sum
+puts "sum of total sizes ≤ 100000: %s" % total_sizes.each.select(&.[1].<= 100_000).map(&.[1]).sum
 
-unused = 70_000_000 - dir_sizes[""]
+unused = 70_000_000 - total_sizes[""]
 needed = 30_000_000 - unused
-dir = dir_sizes.each.select(&.[1].>= needed).min_by(&.[1])
+dir = total_sizes.each.select(&.[1].>= needed).min_by(&.[1])
 puts "smallest directory to be freed: #{dir[0]} (total size: #{dir[1]})"
