@@ -15,47 +15,56 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see  <http://www.gnu.org/licenses/>
 
+require "benchmark"
+
 lines = ARGF.each_line.to_a
 
+chars = ('a'..'z').join + ('A'..'Z').join + ('0'..'9').join
+lines << String.build { |b| 10_000_000.times{ b << chars[rand(61)] } } + chars
+
 puts "--- sort O(n·k·log(k))---"
-lines.each do |line|
-  puts({4,14}.map do |k|
-    i = line.each_char.cons(k).with_index.find!{|s| s[0].sort!.each.cons_pair.all?{|a,b| a < b} }[1]+k
-    "#{k}: #{i}"
-  end.join("  "))
-end
+puts Benchmark.measure {
+  lines.each do |line|
+    puts({4,14,62}.compact_map do |k|
+           line.each_char.cons(k).with_index.find {|s| s[0].sort!.each.cons_pair.all?{|a,b| a < b} }.try { |c| "%2d: %-6d" % {k, c[1]+k} }
+         end.join("  "))
+  end
+}
 
 puts "--- set O(n·k)---"
-lines.each do |line|
-  puts({4,14}.map do |k|
-    i = line.each_char.cons(k).with_index.find!(&.[0].to_set.size.== k)[1]+k
-    "#{k}: #{i}"
-  end.join("  "))
-end
+puts Benchmark.measure {
+  lines.each do |line|
+    puts({4,14,62}.compact_map do |k|
+           line.each_char.cons(k).with_index.find(&.[0].to_set.size.== k).try { |c| "%2d: %-6d" % {k, c[1]+k} }
+         end.join("  "))
+  end
+}
 
 puts "--- counting hash O(n)---"
-lines.each do |line|
-  puts({4,14}.map do |k|
-    cnts = Hash(Char, Int32).new {|h,k| h[k] = 0}
-    i = line.size.times.find! do |i|
-      cnts.delete(line[i-k]) if i >= k && (cnts[line[i-k]] -= 1) == 0
-      cnts[line[i]] += 1
-      cnts.size == k
-    end + 1
-    "#{k}: #{i}"
-  end.join("  "))
-end
+puts Benchmark.measure {
+  lines.each do |line|
+    puts({4,14,62}.compact_map do |k|
+           cnts = Hash(Char, Int32).new {|h,k| h[k] = 0}
+           i = line.size.times.find do |i|
+             cnts.delete(line[i-k]) if i >= k && cnts.update(line[i-k], &.- 1) == 0
+             cnts.update(line[i], &.+ 1)
+             cnts.size == k
+           end.try { |n| "%2d: %-6d" % {k, n + 1} }
+         end.join("  "))
+  end
+}
 
 puts "--- counting array O(n)---"
-lines.each do |line|
-  puts({4,14}.map do |k|
-    cnts = Array.new(26, 0)
-    nmulti = 0
-    i = line.size.times.find! do |i|
-      nmulti -= 1 if i >= k && (cnts[line[i-k] - 'a'] -= 1) == 1
-      nmulti += 1 if (cnts[line[i] - 'a'] += 1) == 2
-      i >= k-1 && nmulti == 0
-    end + 1
-    "#{k}: #{i}"
-  end.join("  "))
-end
+puts Benchmark.measure {
+  lines.each do |line|
+    puts({4,14,62}.compact_map do |k|
+           cnts = Array.new(256, 0)
+           nmulti = 0
+           i = line.size.times.find do |i|
+             nmulti -= 1 if i >= k && (cnts[line[i-k].ord] -= 1) == 1
+             nmulti += 1 if (cnts[line[i].ord] += 1) == 2
+             i >= k-1 && nmulti == 0
+           end.try { |n| "%2d: %-6d" % {k, n + 1} }
+         end.join("  "))
+  end
+}
