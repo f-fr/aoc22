@@ -46,7 +46,7 @@ puts Benchmark.measure {
     puts({4,14,62}.compact_map do |k|
            cnts = Hash(Char, Int32).new {|h,k| h[k] = 0}
            i = line.size.times.find do |i|
-             cnts.delete(line[i-k]) if i >= k && cnts.update(line[i-k], &.- 1) == 0
+             cnts.delete(line[i-k]) if i >= k && cnts.update(line[i-k], &.- 1) == 1
              cnts.update(line[i], &.+ 1)
              cnts.size == k
            end.try { |n| "%2d: %-6d" % {k, n + 1} }
