@@ -21,6 +21,7 @@ lines = ARGF.each_line.to_a
 
 chars = ('a'..'z').join + ('A'..'Z').join + ('0'..'9').join
 lines << String.build { |b| 10_000_000.times{ b << chars[rand(61)] } } + chars
+lines << String.build { |b| 10_000_000.times{ |i| b << chars[i % 61] } } + chars
 
 puts "--- sort O(n·k·log(k))---"
 puts Benchmark.measure {
@@ -36,6 +37,24 @@ puts Benchmark.measure {
   lines.each do |line|
     puts({4,14,62}.compact_map do |k|
            line.each_char.cons(k).with_index.find(&.[0].to_set.size.== k).try { |c| "%2d: %-6d" % {k, c[1]+k} }
+         end.join("  "))
+  end
+}
+
+puts "--- skipping hash O(n·k) ---"
+puts Benchmark.measure {
+  lines.each do |line|
+    puts({4,14,62}.compact_map do |k|
+           i = 0
+           n = line.size - k
+           while i < n
+             poss = {} of Char => Int32
+             pos = nil
+             (i...i+k).find{|j| pos = poss.put(line[j], j) { nil } }
+             break unless pos
+             i = pos + 1
+           end
+           i < n ? "%2d: %-6d" % {k, i + k} : nil
          end.join("  "))
   end
 }
