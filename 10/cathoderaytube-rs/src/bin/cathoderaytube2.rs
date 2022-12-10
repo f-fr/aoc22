@@ -20,44 +20,43 @@ use std::error::Error;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
-fn states<'a, L, E>(lines: &'a mut L) -> impl Iterator<Item = Result<(i32, i32), Box<dyn Error>>> + 'a
+fn states<R>(input: R) -> impl Iterator<Item = Result<(i32, i32), Box<dyn Error>>>
 where
-    L: Iterator<Item = Result<String, E>> + 'a,
-    E: Error + 'static,
+    R: BufRead,
 {
     let mut add = None;
     let mut x = 1;
+    let mut line = String::new();
+    let mut input = input;
     (1i32..)
         .into_iter()
         .map(move |cycle| {
+            line.clear();
             if let Some(a) = add.take() {
                 x += a;
                 Ok(Some((cycle, x - a)))
+            } else if input.read_line(&mut line)? == 0 {
+                Ok(None)
+            } else if line.trim_end() == "noop" {
+                Ok(Some((cycle, x)))
+            } else if line.starts_with("addx ") {
+                let (_, n) = line.trim_end().split_once(' ').ok_or("Invalid addx line")?;
+                add = Some(n.parse::<i32>()?);
+                Ok(Some((cycle, x)))
             } else {
-                match lines.next() {
-                    Some(Ok(line)) if line == "noop" => Ok(Some((cycle, x))),
-                    Some(Ok(line)) if line.starts_with("addx") => {
-                        let (_, n) = line.split_once(' ').ok_or("Invalid addx line")?;
-                        add = Some(n.parse::<i32>()?);
-                        Ok(Some((cycle, x)))
-                    }
-                    None => Ok(None),
-                    Some(Ok(_)) => return Err("Invalid line".into()),
-                    Some(Err(err)) => return Err(err.into()),
-                }
+                Err("Invalid line".into())
             }
         })
-        .take_while(|x| if let Ok(Some(_)) = x { true } else { false })
+        .take_while(|x| matches!(x, Ok(Some(_)) | Err(_)))
         .map(|x| x.map(|y| y.unwrap()))
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
     let filename = env::args().nth(1).ok_or("Missing filename")?;
     let f = File::open(filename).map(BufReader::new)?;
-    let mut lines = f.lines();
 
     let mut sum = 0;
-    for st in states(&mut lines) {
+    for st in states(f) {
         let (cycle, x) = st?;
 
         if cycle % 40 == 20 {
