@@ -18,24 +18,22 @@
 sum = 0
 x = 1
 cycle = 1
-add = nil
 
-lines = ARGF.each_line
-while (line = (add || lines.next)) != Iterator::Stop::INSTANCE
-  sum += cycle * x if cycle % 40 == 20
+lines = ARGF.each_line do |line|
+  add, cnt = case line
+             when "noop" then { 0, 1 }
+             when /addx (-?\d+)/ then { $1.to_i, 2 }
+             else raise "Invalid command #{line}"
+             end
+  cnt.times do
+    sum += cycle * x if cycle % 40 == 20
 
-  print (x - (cycle - 1) % 40).abs <= 1 ? "█" : " "
-  puts if cycle % 40 == 0
+    print (x - (cycle - 1) % 40).abs <= 1 ? "█" : " "
+    puts if cycle % 40 == 0
 
-  add = nil
-  case line
-  when Int then x += line
-  when "noop" # do nothing
-  when /addx (-?\d+)/ then add = $1.to_i
-  else raise "Invalid command #{line}"
+    cycle += 1
   end
-
-  cycle += 1
+  x += add
 end
 
 puts "Final sum #{sum}"
