@@ -20,7 +20,7 @@ use std::error::Error;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
-fn states<R>(input: R) -> impl Iterator<Item = Result<(i32, i32), Box<dyn Error>>>
+fn states<R>(input: R) -> impl Iterator<Item = Result<i32, Box<dyn Error>>>
 where
     R: BufRead,
 {
@@ -28,27 +28,34 @@ where
     let mut x = 1;
     let mut line = String::new();
     let mut input = input;
-    (1i32..)
-        .into_iter()
-        .map(move |cycle| {
-            line.clear();
-            if let Some(a) = add.take() {
-                x += a;
-                Ok(Some((cycle, x - a)))
-            } else if input.read_line(&mut line)? == 0 {
-                Ok(None)
-            } else if line.trim_end() == "noop" {
-                Ok(Some((cycle, x)))
-            } else if line.starts_with("addx ") {
-                let (_, n) = line.trim_end().split_once(' ').ok_or("Invalid addx line")?;
-                add = Some(n.parse::<i32>()?);
-                Ok(Some((cycle, x)))
-            } else {
-                Err("Invalid line".into())
+    (1i32..).map_while(move |_| -> Option<Result<i32, Box<dyn Error>>> {
+        if let Some(a) = add.take() {
+            x += a;
+            return Some(Ok(x - a));
+        }
+
+        line.clear();
+        match input.read_line(&mut line) {
+            Ok(0) => return None,
+            Ok(_) => (),
+            Err(err) => return Some(Err(err.into())),
+        };
+        let line = line.trim_end();
+
+        if line == "noop" {
+            Some(Ok(x))
+        } else if let Some(("addx", n)) = line.split_once(' ') {
+            match n.parse::<i32>() {
+                Ok(n) => {
+                    add = Some(n);
+                    Some(Ok(x))
+                }
+                Err(err) => Some(Err(err.into())),
             }
-        })
-        .take_while(|x| matches!(x, Ok(Some(_)) | Err(_)))
-        .map(|x| x.map(|y| y.unwrap()))
+        } else {
+            return Some(Err("Invalid addx line".into()));
+        }
+    })
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -56,8 +63,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let f = File::open(filename).map(BufReader::new)?;
 
     let mut sum = 0;
-    for st in states(f) {
-        let (cycle, x) = st?;
+    for (cycle, st) in (1..).zip(states(f)) {
+        let x = st?;
 
         if cycle % 40 == 20 {
             sum += cycle * x
