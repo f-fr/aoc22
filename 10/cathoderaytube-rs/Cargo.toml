@@ -8,4 +8,7 @@ edition = "2021"
 [[bin]]
 name = "cathoderaytube"
 
+[[bin]]
+name = "cathoderaytube2"
+
 [dependencies]
