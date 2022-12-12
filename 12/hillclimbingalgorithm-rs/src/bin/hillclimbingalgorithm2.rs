@@ -19,77 +19,11 @@ use std::env;
 use std::error::Error;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
+use std::marker::PhantomData;
 
 use rs_graph::adjacencies::Adjacencies;
 use rs_graph::search::bfs;
 use rs_graph::traits::{GraphIterator, GraphType};
-
-struct Grid {
-    grid: Vec<Vec<u32>>,
-}
-
-type Node = Option<(usize, usize)>;
-type Edge = (Node, Node);
-
-impl<'a> GraphType<'a> for Grid {
-    type Node = Node;
-    type Edge = Edge;
-}
-
-#[derive(Clone)]
-struct NeighIt {
-    dir: usize,
-    u: Node,
-    start_nodes: Vec<Node>,
-}
-
-impl GraphIterator<Grid> for NeighIt {
-    type Item = (Edge, Node);
-    fn next(&mut self, g: &Grid) -> Option<Self::Item> {
-        // add a special start node: the virtual "super-source"
-        if let Some(u) = self.u {
-            let mut v = None;
-            while self.dir < 4 && v.is_none() {
-                v = match self.dir {
-                    0 if u.0 > 0 => Some((u.0 - 1, u.1)),
-                    1 if u.0 + 1 < g.grid.len() => Some((u.0 + 1, u.1)),
-                    2 if u.1 > 0 => Some((u.0, u.1 - 1)),
-                    3 if u.1 + 1 < g.grid[u.0].len() => Some((u.0, u.1 + 1)),
-                    4 => return None,
-                    _ => None,
-                }
-                .filter(|v| g.grid[v.0][v.1] <= g.grid[u.0][u.1] + 1);
-                self.dir += 1;
-            }
-            v.map(|v| ((Some(u), Some(v)), Some(v)))
-        } else {
-            if self.start_nodes.is_empty() {
-                self.start_nodes = g
-                    .grid
-                    .iter()
-                    .enumerate()
-                    .flat_map(|(i, line)| line.iter().enumerate().filter(|(_, c)| **c == 0).map(move |(j, _)| Some((i, j))))
-                    .collect();
-            }
-
-            if self.dir < self.start_nodes.len() {
-                let v = self.start_nodes[self.dir];
-                self.dir += 1;
-                Some(((None, v), v))
-            } else {
-                None
-            }
-        }
-    }
-}
-
-impl<'a> Adjacencies<'a> for Grid {
-    type IncidenceIt = NeighIt;
-
-    fn neigh_iter(&self, u: Self::Node) -> Self::IncidenceIt {
-        NeighIt { dir: 0, u, start_nodes: vec![] }
-    }
-}
 
 fn main() -> Result<(), Box<dyn Error>> {
     let filename = env::args().nth(1).ok_or("Missing filename")?;
@@ -119,27 +53,119 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .collect::<Result<Vec<_>, _>>()
         })
         .collect::<Result<Vec<_>, _>>()?;
-    let grid = Grid { grid };
     let start_point = start_point.ok_or("Missing start point")?;
     let end_point = end_point.ok_or("Missing start point")?;
 
-    println!("Part 1: {}", bfs(&grid, Some(start_point), end_point).expect("No path"));
-    println!("Part 2: {}", bfs(&grid, None, end_point).expect("No path"));
+    let adj = FnGraph::from(|u: Option<(usize, usize)>| {
+        let h_u = u.map(|u| grid[u.0][u.1]).unwrap_or(0);
+        let grid = &grid;
+        let n = grid.len() as isize;
+        let m = grid[0].len() as isize;
+        if let Some(u) = u {
+            let (i, j) = (u.0 as isize, u.1 as isize);
+            vec![(i - 1, j), (i + 1, j), (i, j - 1), (i, j + 1)]
+        } else {
+            grid.iter()
+                .enumerate()
+                .flat_map(|(i, line)| line.iter().enumerate().filter(|(_, c)| **c == 0).map(move |(j, _)| (i as isize, j as isize)))
+                .collect()
+        }
+        .into_iter()
+        .filter(move |v| 0 <= v.0 && v.0 < n && 0 <= v.1 && v.1 < m)
+        .map(|(i, j)| (i as usize, j as usize))
+        .filter(move |v| grid[v.0][v.1] <= h_u + 1)
+        .map(Some)
+        .map(move |v| ((u, v), v))
+    });
+
+    for (i, start_point) in [Some(start_point), None].into_iter().enumerate() {
+        let mut dists = vec![vec![None; grid[0].len()]; grid.len()];
+        if let Some(s) = start_point {
+            dists[s.0][s.1] = Some(0);
+        }
+        for (v, (u, _)) in bfs::start(&adj, start_point) {
+            let v = v.unwrap();
+            dists[v.0][v.1] = u.map(|u| dists[u.0][u.1].map(|d| d + 1)).unwrap_or(Some(0));
+            if v == end_point {
+                break;
+            }
+        }
+
+        println!("Part {}: {}", i + 1, dists[end_point.0][end_point.1].expect("No path"));
+    }
 
     Ok(())
 }
 
-fn bfs(grid: &Grid, s: Node, end_point: (usize, usize)) -> Option<usize> {
-    let mut dists = vec![vec![None; grid.grid[0].len()]; grid.grid.len()];
-    if let Some(s) = s {
-        dists[s.0][s.1] = Some(0);
+struct FnGraph<V, E, N, NIt> {
+    neighsfn: N,
+    phantom: PhantomData<(V, E, NIt)>,
+}
+
+impl<'a, V, E, N, NIt> GraphType<'a> for FnGraph<V, E, N, NIt>
+where
+    V: Copy + Eq + 'a,
+    E: Copy + Eq + 'a,
+    N: Fn(V) -> NIt,
+    NIt: Iterator<Item = (E, V)> + Clone,
+{
+    type Node = V;
+    type Edge = E;
+}
+
+#[derive(Clone)]
+struct FnNeighIt<NIt>
+where
+    NIt: Clone,
+{
+    it: NIt,
+}
+
+impl<V, E, N, NIt> GraphIterator<FnGraph<V, E, N, NIt>> for FnNeighIt<NIt>
+where
+    NIt: Iterator<Item = (E, V)> + Clone,
+{
+    type Item = (E, V);
+    fn next(&mut self, _g: &FnGraph<V, E, N, NIt>) -> Option<Self::Item> {
+        self.it.next()
     }
-    for (v, (u, _)) in bfs::start(grid, s) {
-        let v = v.unwrap();
-        dists[v.0][v.1] = u.map(|u| dists[u.0][u.1].map(|d| d + 1)).unwrap_or(Some(0));
-        if v == end_point {
-            break;
-        }
+}
+
+impl<'a, V, E, N, NIt: Clone> Adjacencies<'a> for FnGraph<V, E, N, NIt>
+where
+    V: Copy + Eq + 'a,
+    E: Copy + Eq + 'a,
+    N: Fn(V) -> NIt,
+    NIt: Iterator<Item = (E, V)> + Clone,
+{
+    type IncidenceIt = FnNeighIt<NIt>;
+
+    fn neigh_iter(&self, u: Self::Node) -> Self::IncidenceIt {
+        FnNeighIt { it: (self.neighsfn)(u) }
     }
-    dists[end_point.0][end_point.1]
+}
+
+impl<'a, V, E, N, NIt: Clone> From<N> for FnGraph<V, E, N, NIt>
+where
+    V: Copy + Eq + 'a,
+    E: Copy + Eq + 'a,
+    N: Fn(V) -> NIt,
+    NIt: Iterator<Item = (E, V)> + Clone,
+{
+    fn from(neighs: N) -> Self {
+        make_adj(neighs)
+    }
+}
+
+fn make_adj<'a, V, E, N, NIt>(neighs: N) -> FnGraph<V, E, N, NIt>
+where
+    V: Copy + Eq + 'a,
+    E: Copy + Eq + 'a,
+    N: Fn(V) -> NIt,
+    NIt: Iterator<Item = (E, V)> + Clone,
+{
+    FnGraph {
+        neighsfn: neighs,
+        phantom: PhantomData,
+    }
 }
