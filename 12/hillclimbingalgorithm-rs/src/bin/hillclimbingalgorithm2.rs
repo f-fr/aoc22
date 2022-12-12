@@ -53,45 +53,36 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .collect::<Result<Vec<_>, _>>()
         })
         .collect::<Result<Vec<_>, _>>()?;
+
     let start_point = start_point.ok_or("Missing start point")?;
     let end_point = end_point.ok_or("Missing start point")?;
 
-    let adj = FnGraph::from(|u: Option<(usize, usize)>| {
-        let h_u = u.map(|u| grid[u.0][u.1]).unwrap_or(0);
+    // reverse graph
+    let adj = FnGraph::from(|u: (usize, usize)| {
+        let h_u = grid[u.0][u.1];
         let grid = &grid;
         let n = grid.len() as isize;
         let m = grid[0].len() as isize;
-        if let Some(u) = u {
-            let (i, j) = (u.0 as isize, u.1 as isize);
-            vec![(i - 1, j), (i + 1, j), (i, j - 1), (i, j + 1)]
-        } else {
-            grid.iter()
-                .enumerate()
-                .flat_map(|(i, line)| line.iter().enumerate().filter(|(_, c)| **c == 0).map(move |(j, _)| (i as isize, j as isize)))
-                .collect()
-        }
-        .into_iter()
-        .filter(move |v| 0 <= v.0 && v.0 < n && 0 <= v.1 && v.1 < m)
-        .map(|(i, j)| (i as usize, j as usize))
-        .filter(move |v| grid[v.0][v.1] <= h_u + 1)
-        .map(Some)
-        .map(move |v| ((u, v), v))
+        let (i, j) = (u.0 as isize, u.1 as isize);
+        [(i - 1, j), (i + 1, j), (i, j - 1), (i, j + 1)]
+            .into_iter()
+            .filter(move |v| 0 <= v.0 && v.0 < n && 0 <= v.1 && v.1 < m)
+            .map(|(i, j)| (i as usize, j as usize))
+            .filter(move |v| h_u <= grid[v.0][v.1] + 1)
+            .map(move |v| ((u, v), v))
     });
 
     for (i, start_point) in [Some(start_point), None].into_iter().enumerate() {
         let mut dists = vec![vec![None; grid[0].len()]; grid.len()];
-        if let Some(s) = start_point {
-            dists[s.0][s.1] = Some(0);
-        }
-        for (v, (u, _)) in bfs::start(&adj, start_point) {
-            let v = v.unwrap();
-            dists[v.0][v.1] = u.map(|u| dists[u.0][u.1].map(|d| d + 1)).unwrap_or(Some(0));
-            if v == end_point {
+        dists[end_point.0][end_point.1] = Some(0);
+        for (v, (u, _)) in bfs::start(&adj, end_point) {
+            let d = dists[u.0][u.1].map(|d| d + 1).unwrap();
+            dists[v.0][v.1] = Some(d);
+            if grid[v.0][v.1] == 0 && start_point.map(|s| s == v).unwrap_or(true) {
+                println!("Part {}: {}", i + 1, d);
                 break;
             }
         }
-
-        println!("Part {}: {}", i + 1, dists[end_point.0][end_point.1].expect("No path"));
     }
 
     Ok(())
