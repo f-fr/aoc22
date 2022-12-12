@@ -8,4 +8,8 @@ edition = "2021"
 [[bin]]
 name = "hillclimbingalgorithm1"
 
+[[bin]]
+name = "hillclimbingalgorithm2"
+
 [dependencies]
+rs-graph = "^0.20"
