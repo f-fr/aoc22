@@ -13,3 +13,4 @@ name = "hillclimbingalgorithm2"
 
 [dependencies]
 rs-graph = "^0.20"
+rs-graph-derive = "^0.20"
