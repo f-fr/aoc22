@@ -99,13 +99,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     let filename = env::args().nth(1).ok_or("Missing filename")?;
     let f = File::open(filename).map(BufReader::new)?;
 
-    let mut lines = vec![];
-    for line in f.lines() {
-        let line = line?;
-        if !line.is_empty() {
-            lines.push(parse(&line).map(|x| x.0)?);
-        }
-    }
+    let mut lines = f
+        .lines()
+        // convert io-errors
+        .map(|l| l.map_err(From::from))
+        // keep non-empty lines and errors
+        .filter(|l| l.as_ref().map(|l| !l.is_empty()).unwrap_or(true))
+        .map(|l| l.and_then(|l| parse(&l)))
+        .collect::<Result<Vec<_>, _>>()?;
 
     let score1 = (0..lines.len())
         .step_by(2)
@@ -114,8 +115,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         .sum::<usize>();
     println!("Score 1: {}", score1);
 
-    let n2 = parse("[[2]]").map(|n| n.0)?;
-    let n6 = parse("[[6]]").map(|n| n.0)?;
+    let n2 = parse("[[2]]")?;
+    let n6 = parse("[[6]]")?;
     lines.push(n2.clone());
     lines.push(n6.clone());
     lines.sort();
@@ -126,7 +127,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn parse<'a>(line: &'a str) -> Result<(Node, &'a str), Box<dyn Error>> {
+fn parse<'a>(line: &'a str) -> Result<Node, Box<dyn Error>> {
+    parse_node(line).map(|x| x.0)
+}
+
+fn parse_node<'a>(line: &'a str) -> Result<(Node, &'a str), Box<dyn Error>> {
     if line.is_empty() {
         return Err("Unexpected end of input".into());
     }
@@ -141,7 +146,7 @@ fn parse<'a>(line: &'a str) -> Result<(Node, &'a str), Box<dyn Error>> {
         let mut children = vec![];
         let mut rest = &line[1..];
         loop {
-            let (child, r) = parse(rest)?;
+            let (child, r) = parse_node(rest)?;
             children.push(child);
             rest = r;
             if rest.is_empty() {
