@@ -21,7 +21,7 @@ use std::error::Error;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
-#[derive(Clone, Debug, Eq, Ord)]
+#[derive(Clone, Debug, Eq)]
 enum Node {
     Number(usize),
     List(Vec<Node>),
@@ -47,50 +47,24 @@ impl std::fmt::Display for Node {
 
 impl PartialEq for Node {
     fn eq(&self, other: &Node) -> bool {
-        cmp(self, other) == Ordering::Equal
+        self.cmp(other) == Ordering::Equal
     }
 }
 
 impl PartialOrd for Node {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(cmp(self, other))
+        Some(self.cmp(other))
     }
 }
 
-fn cmp(x: &Node, y: &Node) -> Ordering {
-    use Node::*;
-    match (x, y) {
-        (Number(x), Number(y)) => x.cmp(y),
-        (List(x), List(y)) => {
-            for (x, y) in x.iter().zip(y) {
-                let c = cmp(x, y);
-                if c != Ordering::Equal {
-                    return c;
-                }
-            }
-            x.len().cmp(&y.len())
-        }
-        (x, List(y)) => {
-            if y.is_empty() {
-                return Ordering::Greater;
-            }
-            let c = cmp(x, &y[0]);
-            if c != Ordering::Equal {
-                c
-            } else {
-                1.cmp(&y.len())
-            }
-        }
-        (List(x), y) => {
-            if x.is_empty() {
-                return Ordering::Less;
-            }
-            let c = cmp(&x[0], y);
-            if c != Ordering::Equal {
-                c
-            } else {
-                x.len().cmp(&1)
-            }
+impl Ord for Node {
+    fn cmp(self: &Node, y: &Node) -> Ordering {
+        use Node::*;
+        match (self, y) {
+            (Number(x), Number(y)) => x.cmp(y),
+            (List(x), List(y)) => x.iter().cmp(y),
+            (x, List(y)) => [x].into_iter().cmp(y),
+            (List(x), y) => x.iter().cmp([y]),
         }
     }
 }
