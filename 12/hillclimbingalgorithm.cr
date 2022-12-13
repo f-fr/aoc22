@@ -41,36 +41,28 @@ n = grid.size
 m = grid[0].size
 raise "Not a rectangular grid" unless grid.all?(&.size.== m)
 
-2.times do |part|
-  dist = grid.map(&.map{nil.as(Int32?)})
-  q = Deque({Int32, Int32}).new
+dist = grid.map(&.map{nil.as(Int32?)})
+q = Deque({Int32, Int32}).new
 
-  if part == 0
-    q << s
-    dist[s[0]][s[1]] = 0
-  else
-    n.times do |i|
-      m.times do |j|
-        if grid[i][j] == 0
-          q << {i, j}
-          dist[i][j] = 0
-        end
-      end
+q << e
+dist[e[0]][e[1]] = 0
+
+# bfs
+best = nil
+while u = q.shift?
+  i, j = u
+  best = u if grid[i][j] == 0 && !best
+  break if u == s
+  { {i-1, j}, {i+1, j}, {i, j-1}, {i, j+1} }.each do |v|
+    y, x = v
+    if 0 <= y < n && 0 <= x < m && !dist[y][x] && grid[i][j] <= grid[y][x] + 1
+      dist[y][x] = dist[i][j].not_nil! + 1
+      q << v
     end
   end
-
-  # bfs
-  while u = q.shift?
-    i, j = u
-    break if {i, j} == e
-    { {i-1, j}, {i+1, j}, {i, j-1}, {i, j+1} }.each do |v|
-      y, x = v
-      if 0 <= y < n && 0 <= x < m && !dist[y][x] && grid[y][x] <= grid[i][j] + 1
-        dist[y][x] = dist[i][j].not_nil! + 1
-        q << v
-      end
-    end
-  end
-
-  puts "Part#{part+1}: #{dist[e[0]][e[1]]}"
 end
+
+best = best.not_nil!
+
+puts "Part 1: #{dist[s[0]][s[1]]}"
+puts "Part 2: #{dist[best[0]][best[1]]}"

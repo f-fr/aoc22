@@ -41,45 +41,37 @@ n = grid.size
 m = grid[0].size
 raise "Not a rectangular grid" unless grid.all?(&.size.== m)
 
-2.times do |part|
-  dist = grid.map(&.map{nil.as(Int32?)})
-  q = Deque({Int32, Int32}).new
+dist = grid.map(&.map{nil.as(Int32?)})
+q = Deque({Int32, Int32}).new
 
-  if part == 0
-    q << s
-    dist[s[0]][s[1]] = 0
-  else
-    n.times do |i|
-      m.times do |j|
-        if grid[i][j] == 0
-          q << {i, j}
-          dist[i][j] = 0
-        end
-      end
+q << e
+dist[e[0]][e[1]] = 0
+
+# bfs
+best = nil
+pred = n.times.map{Array({Int32, Int32}?).new(m, nil)}.to_a
+while u = q.shift?
+  i, j = u
+  best = u if grid[i][j] == 0 && !best
+  break if u == s
+  { {i-1, j}, {i+1, j}, {i, j-1}, {i, j+1} }.each do |v|
+    y, x = v
+    if 0 <= y < n && 0 <= x < m && !dist[y][x] && grid[i][j] <= grid[y][x] + 1
+      pred[y][x] = u
+      dist[y][x] = dist[i][j].not_nil! + 1
+      q << v
     end
   end
+end
 
-  # bfs
-  pred = n.times.map{Array({Int32, Int32}?).new(m, nil)}.to_a
-  while u = q.shift?
-    i, j = u
-    break if {i, j} == e
-    { {i-1, j}, {i+1, j}, {i, j-1}, {i, j+1} }.each do |v|
-      y, x = v
-      if 0 <= y < n && 0 <= x < m && !dist[y][x] && grid[y][x] <= grid[i][j] + 1
-        pred[y][x] = u
-        dist[y][x] = dist[i][j].not_nil! + 1
-        q << v
-      end
-    end
-  end
+best = best.not_nil!
+path = n.times.map{ ['.'] * m }.to_a
 
-  path = n.times.map{ ['.'] * m }.to_a
-  u = e
+{s, best}.each do |u|
   dir = nil
   while u
     v = pred[u[0]][u[1]]
-    break unless v
+    break if !v || path[v[0]][v[1]] != '.'
     dir, path[v[0]][v[1]] = case {u[0] - v[0], u[1] - v[1]}
                             when {-1, 0}
                               case dir
@@ -109,10 +101,15 @@ raise "Not a rectangular grid" unless grid.all?(&.size.== m)
                             end
     u = v
   end
-
-  puts
-  puts path.map(&.join).join("\n")
-  puts
-
-  puts "Part#{part+1}: #{dist[e[0]][e[1]]}"
 end
+
+path[s[0]][s[1]] = 'S'
+path[e[0]][e[1]] = 'E'
+path[best[0]][best[1]] = 'B'
+
+puts
+puts path.map(&.join).join("\n")
+puts
+
+puts "Part 1: #{dist[s[0]][s[1]]}"
+puts "Part 2: #{dist[best[0]][best[1]]}"
