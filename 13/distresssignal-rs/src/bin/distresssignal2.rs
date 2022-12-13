@@ -17,9 +17,11 @@
 
 use nom::{
     branch::alt,
+    bytes::complete::tag,
     character::complete::{char, u32},
-    combinator::map_res,
-    multi::separated_list0,
+    combinator::{cut, map_res},
+    error::convert_error,
+    multi::separated_list1,
     sequence::delimited,
     Finish, IResult, Parser,
 };
@@ -77,7 +79,13 @@ impl Ord for Node {
     }
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() {
+    if let Err(err) = run() {
+        eprintln!("{}", err);
+    }
+}
+
+fn run() -> Result<(), Box<dyn Error>> {
     let filename = env::args().nth(1).ok_or("Missing filename")?;
     let f = File::open(filename).map(BufReader::new)?;
 
@@ -110,12 +118,19 @@ fn parse(line: &str) -> Result<Node, Box<dyn Error>> {
     parse_node(line)
         .finish()
         .map(|x| x.1)
-        .map_err(|err| format!("Parse error: {}", err).into())
+        .map_err(|e| format!("Parse error: {}", convert_error(line, e)))
+        .map_err(From::from)
 }
 
-fn parse_node(input: &str) -> IResult<&str, Node> {
+fn parse_node(input: &str) -> IResult<&str, Node, nom::error::VerboseError<&str>> {
     alt((
         map_res(u32, usize::try_from).map(Node::Number),
-        delimited(char('['), separated_list0(char(','), parse_node), char(']')).map(Node::List),
+        tag("[]").map(|_| Node::List(vec![])),
+        delimited(
+            char('['),
+            separated_list1(char(','), cut(parse_node)),
+            char(']'),
+        )
+        .map(Node::List),
     ))(input)
 }
