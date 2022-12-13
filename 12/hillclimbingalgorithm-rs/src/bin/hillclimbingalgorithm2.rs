@@ -72,14 +72,19 @@ fn main() -> Result<(), Box<dyn Error>> {
             .map(move |v| ((u, v), v))
     });
 
-    for (i, start_point) in [Some(start_point), None].into_iter().enumerate() {
-        let mut dists = vec![vec![None; grid[0].len()]; grid.len()];
-        dists[end_point.0][end_point.1] = Some(0);
-        for (v, (u, _)) in bfs::start(&adj, end_point) {
-            let d = dists[u.0][u.1].map(|d| d + 1).unwrap();
-            dists[v.0][v.1] = Some(d);
-            if grid[v.0][v.1] == 0 && start_point.map(|s| s == v).unwrap_or(true) {
-                println!("Part {}: {}", i + 1, d);
+    let mut dists = vec![vec![None; grid[0].len()]; grid.len()];
+    dists[end_point.0][end_point.1] = Some(0);
+    let mut best = None;
+    for (v, (u, _)) in bfs::start(&adj, end_point) {
+        let d = dists[u.0][u.1].map(|d| d + 1).unwrap();
+        dists[v.0][v.1] = Some(d);
+        if grid[v.0][v.1] == 0 {
+            if best.is_none() {
+                best = Some(d);
+            }
+            if v == start_point {
+                println!("Part 1: {}", d);
+                println!("Part 2: {}", best.unwrap_or(d));
                 break;
             }
         }

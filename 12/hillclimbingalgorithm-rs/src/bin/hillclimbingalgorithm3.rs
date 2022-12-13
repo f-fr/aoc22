@@ -95,14 +95,19 @@ fn main() -> Result<(), Box<dyn Error>> {
     let end_node = end_node.ok_or("Missing start point")?;
 
     // reverse graph
-    for (i, start_node) in [Some(start_node), None].into_iter().enumerate() {
-        let mut dists = vec![None; g.num_nodes()];
-        dists[g.node_id(end_node)] = Some(0);
-        for (v, e) in bfs::start(g.incoming(), end_node) {
-            let d = dists[g.node_id(g.snk(e))].map(|d| d + 1).unwrap();
-            dists[g.node_id(v)] = Some(d);
-            if g.node(v).height == 0 && start_node.map(|s| s == v).unwrap_or(true) {
-                println!("Part {}: {}", i + 1, d);
+    let mut dists = vec![None; g.num_nodes()];
+    dists[g.node_id(end_node)] = Some(0);
+    let mut best = None;
+    for (v, e) in bfs::start(g.incoming(), end_node) {
+        let d = dists[g.node_id(g.snk(e))].map(|d| d + 1).unwrap();
+        dists[g.node_id(v)] = Some(d);
+        if g.node(v).height == 0 {
+            if best.is_none() {
+                best = Some(d)
+            }
+            if v == start_node {
+                println!("Part 1: {}", d);
+                println!("Part 2: {}", best.unwrap_or(d));
                 break;
             }
         }
