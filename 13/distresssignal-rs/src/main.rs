@@ -29,9 +29,9 @@ enum Node {
 
 impl std::fmt::Display for Node {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            &Node::Number(n) => write!(f, "{}", n),
-            &Node::List(ref children) => {
+        match *self {
+            Node::Number(n) => write!(f, "{}", n),
+            Node::List(ref children) => {
                 write!(f, "[")?;
                 for (i, child) in children.iter().enumerate() {
                     if i > 0 {
@@ -127,11 +127,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn parse<'a>(line: &'a str) -> Result<Node, Box<dyn Error>> {
+fn parse(line: &str) -> Result<Node, Box<dyn Error>> {
     parse_node(line).map(|x| x.0)
 }
 
-fn parse_node<'a>(line: &'a str) -> Result<(Node, &'a str), Box<dyn Error>> {
+fn parse_node(line: &str) -> Result<(Node, &str), Box<dyn Error>> {
     if line.is_empty() {
         return Err("Unexpected end of input".into());
     }
