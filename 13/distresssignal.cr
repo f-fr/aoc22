@@ -15,62 +15,69 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see  <http://www.gnu.org/licenses/>
 
-def cmp_list(x : String, xpos : Int32, y : String, ypos : Int32): {Int32, Int32, Int32}
-  raise "Parse error: expecting '['" if x[xpos] != '['
-  raise "Parse error: expecting '['" if y[ypos] != '['
-
-  xpos += 1
-  ypos += 1
-
-  case {x[xpos], y[ypos]}
-  when {']', ']'} then return {0, xpos + 1, ypos + 1}
-  when {']', _} then return {-1, xpos + 1, ypos + 1}
-  when {_, ']'} then return {1, xpos + 1, ypos + 1}
+# Compare `x[xpos...xend]` and `y[ypos...yend]`.
+# Return `{result, xpos, ypos}` where `xpos` and `ypos` is the position of the first
+# unparsed character in `x` and `y`.
+def cmp_list(x : String, xpos : Int32, xend : Int32, y : String, ypos : Int32, yend : Int32): {Int32, Int32, Int32}
+  xdone = xpos >= xend || x[xpos] == ']'
+  ydone = ypos >= yend || y[ypos] == ']'
+  case {xdone, ydone}
+  when {true, true}  then return { 0, xpos, ypos}
+  when {true, false} then return {-1, xpos, ypos}
+  when {false, true} then return { 1, xpos, ypos}
   end
 
   loop do
     case {x[xpos], y[ypos]}
     when {'0'..'9', '0'..'9'}
-      xend = x.index(/[],]/, xpos) || raise "Unexpected end of list"
-      yend = y.index(/[],]/, ypos) || raise "Unexpected end of list"
-      case x[xpos...xend].to_i <=> y[ypos...yend].to_i
-      when -1 then return {-1, xend, yend}
-      when +1 then return {+1, xend, yend}
+      xendnum = x.index(/[],]/, xpos) || raise "Unexpected end of list"
+      yendnum = y.index(/[],]/, ypos) || raise "Unexpected end of list"
+      case x[xpos...xendnum].to_i <=> y[ypos...yendnum].to_i
+      when -1 then return {-1, xendnum, yendnum}
+      when +1 then return {+1, xendnum, yendnum}
       end
-      xpos = xend
-      ypos = yend
+      xpos = xendnum
+      ypos = yendnum
     when {'[', '['}
-      c, xpos, ypos = cmp_list(x, xpos, y, ypos)
+      c, xpos, ypos = cmp_list(x, xpos+1, xend, y, ypos+1, yend)
       return {c, xpos, ypos} if c != 0
+      raise "Missing ']' at xpos:#{xpos}" if x[xpos] != ']'
+      raise "Missing ']' at ypos:#{ypos}" if y[ypos] != ']'
+      xpos += 1
+      ypos += 1
     when {'0'..'9', '['}
-      xend = x.index(/[],]/, xpos) || raise "Unexpected end of list"
-      x2 = "#{x[...xpos]}[#{x[xpos...xend]}]#{x[xend..]}"
-      c, xpos, ypos = cmp_list(x2, xpos, y, ypos)
+      xendnum = x.index(/[],]/, xpos) || raise "Missing ']' or ','"
+      c, xpos, ypos = cmp_list(x, xpos, xendnum, y, ypos+1, yend)
       return {c, xpos, ypos} if c != 0
-      xpos -= 2 # remove the two inserted characters again
+      raise "Missing ']'" if y[ypos] != ']'
+      ypos += 1
     when {'[', '0'..'9'}
-      yend = y.index(/[],]/, ypos) || raise "Unexpected end of list"
-      y2 = "#{y[...ypos]}[#{y[ypos...yend]}]#{y[yend..]}"
-      c, xpos, ypos = cmp_list(x, xpos, y2, ypos)
+      yendnum = y.index(/[],]/, ypos) || raise "Missing ']' or ','"
+      c, xpos, ypos = cmp_list(x, xpos+1, xend, y, ypos, yendnum)
       return {c, xpos, ypos} if c != 0
-      ypos -= 2 # remove the two inserted characters again
+      raise "Missing ']'" if x[xpos] != ']'
+      xpos += 1
     else raise "Parse error: expect item"
     end
 
-    case {x[xpos], y[ypos]}
-    when {']', ']'} then return {0, xpos + 1, ypos + 1}
-    when {']', _} then return {-1, xpos + 1, ypos + 1}
-    when {_, ']'} then return {1, xpos + 1, ypos + 1}
+    xdone = xpos >= xend || x[xpos] == ']'
+    ydone = ypos >= yend || y[ypos] == ']'
+    case {xdone, ydone}
+    when {true, true}  then return { 0, xpos, ypos}
+    when {true, false} then return {-1, xpos, ypos}
+    when {false, true} then return { 1, xpos, ypos}
     end
 
     # must be both ','
+    raise "Parse error: expected ','" if xpos < xend && x[xpos] != ','
+    raise "Parse error: expected ','" if ypos < yend && y[ypos] != ','
     xpos += 1
     ypos += 1
   end
 end
 
 def cmp(x, y)
-  cmp_list(x, 0, y, 0)[0]
+  cmp_list(x, 0, x.size, y, 0, y.size)[0]
 end
 
 lines = ARGF.each_line.slice_after(true, &.empty?).map(&.reject(&.empty?)).to_a
