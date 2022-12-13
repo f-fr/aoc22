@@ -115,7 +115,7 @@ fn parse(line: &str) -> Result<Node, Box<dyn Error>> {
 
 fn parse_node(input: &str) -> IResult<&str, Node> {
     alt((
-        map_res(u32, |i: u32| usize::try_from(i)).map(Node::Number),
+        map_res(u32, usize::try_from).map(Node::Number),
         delimited(char('['), separated_list0(char(','), parse_node), char(']')).map(Node::List),
     ))(input)
 }
