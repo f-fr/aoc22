@@ -58,7 +58,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let end_point = end_point.ok_or("Missing start point")?;
 
     // reverse graph
-    let adj = FnGraph::from(|u: (usize, usize)| {
+    let adj = FnAdj::from(|u: (usize, usize)| {
         let h_u = grid[u.0][u.1];
         let grid = &grid;
         let n = grid.len() as isize;
@@ -88,12 +88,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-struct FnGraph<V, E, N, NIt> {
+struct FnAdj<V, E, N, NIt> {
     neighsfn: N,
     phantom: PhantomData<(V, E, NIt)>,
 }
 
-impl<'a, V, E, N, NIt> GraphType<'a> for FnGraph<V, E, N, NIt>
+impl<'a, V, E, N, NIt> GraphType<'a> for FnAdj<V, E, N, NIt>
 where
     V: Copy + Eq + 'a,
     E: Copy + Eq + 'a,
@@ -112,17 +112,17 @@ where
     it: NIt,
 }
 
-impl<V, E, N, NIt> GraphIterator<FnGraph<V, E, N, NIt>> for FnNeighIt<NIt>
+impl<V, E, N, NIt> GraphIterator<FnAdj<V, E, N, NIt>> for FnNeighIt<NIt>
 where
     NIt: Iterator<Item = (E, V)> + Clone,
 {
     type Item = (E, V);
-    fn next(&mut self, _g: &FnGraph<V, E, N, NIt>) -> Option<Self::Item> {
+    fn next(&mut self, _g: &FnAdj<V, E, N, NIt>) -> Option<Self::Item> {
         self.it.next()
     }
 }
 
-impl<'a, V, E, N, NIt: Clone> Adjacencies<'a> for FnGraph<V, E, N, NIt>
+impl<'a, V, E, N, NIt: Clone> Adjacencies<'a> for FnAdj<V, E, N, NIt>
 where
     V: Copy + Eq + 'a,
     E: Copy + Eq + 'a,
@@ -136,7 +136,7 @@ where
     }
 }
 
-impl<'a, V, E, N, NIt: Clone> From<N> for FnGraph<V, E, N, NIt>
+impl<'a, V, E, N, NIt: Clone> From<N> for FnAdj<V, E, N, NIt>
 where
     V: Copy + Eq + 'a,
     E: Copy + Eq + 'a,
@@ -144,19 +144,9 @@ where
     NIt: Iterator<Item = (E, V)> + Clone,
 {
     fn from(neighs: N) -> Self {
-        make_adj(neighs)
-    }
-}
-
-fn make_adj<'a, V, E, N, NIt>(neighs: N) -> FnGraph<V, E, N, NIt>
-where
-    V: Copy + Eq + 'a,
-    E: Copy + Eq + 'a,
-    N: Fn(V) -> NIt,
-    NIt: Iterator<Item = (E, V)> + Clone,
-{
-    FnGraph {
-        neighsfn: neighs,
-        phantom: PhantomData,
+        FnAdj {
+            neighsfn: neighs,
+            phantom: PhantomData,
+        }
     }
 }
