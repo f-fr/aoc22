@@ -81,7 +81,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let filename = env::args().nth(1).ok_or("Missing filename")?;
     let f = File::open(filename).map(BufReader::new)?;
 
-    let mut lines = f
+    let lines = f
         .lines()
         // convert io-errors
         .map(|l| l.map_err(From::from))
@@ -99,11 +99,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let n2 = parse("[[2]]")?;
     let n6 = parse("[[6]]")?;
-    lines.push(n2.clone());
-    lines.push(n6.clone());
-    lines.sort();
-    let p2 = lines.iter().position(|n| n == &n2).unwrap() + 1;
-    let p6 = lines.iter().position(|n| n == &n6).unwrap() + 1;
+    let p2 = lines.iter().filter(|l| l < &&n2).count() + 1;
+    let p6 = lines.iter().filter(|l| l < &&n6).count() + 2;
     println!("Score 2: {}", p2 * p6);
 
     Ok(())
