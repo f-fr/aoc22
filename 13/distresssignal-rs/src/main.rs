@@ -70,8 +70,28 @@ fn cmp(x: &Node, y: &Node) -> Ordering {
             }
             x.len().cmp(&y.len())
         }
-        (Number(x), y) => cmp(&List(vec![Number(*x)]), y),
-        (x, Number(y)) => cmp(x, &List(vec![Number(*y)])),
+        (x, List(y)) => {
+            if y.is_empty() {
+                return Ordering::Greater;
+            }
+            let c = cmp(x, &y[0]);
+            if c != Ordering::Equal {
+                c
+            } else {
+                1.cmp(&y.len())
+            }
+        }
+        (List(x), y) => {
+            if x.is_empty() {
+                return Ordering::Less;
+            }
+            let c = cmp(&x[0], y);
+            if c != Ordering::Equal {
+                c
+            } else {
+                x.len().cmp(&1)
+            }
+        }
     }
 }
 
