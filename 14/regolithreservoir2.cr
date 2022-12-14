@@ -16,7 +16,7 @@
 # along with this program.  If not, see  <http://www.gnu.org/licenses/>
 
 paths = ARGF.each_line.map do |path|
-  path.split(" -> ").map(&.split(',').map(&.to_i)).map{|c| {c[0], c[1]} }
+  path.split(" -> ").map(&.split(',').map(&.to_i)).map { |c| {c[0], c[1]} }
 end.to_a
 
 min_y, max_y = paths.each.flat_map(&.map(&.[1])).chain({0}.each).minmax
@@ -25,10 +25,10 @@ min_x1, max_x1 = paths.each.flat_map(&.map(&.[0])).chain({500}.each).minmax
 min_x = {min_x1, 500 - (max_y - min_y) - 2}.min
 max_x = {max_x1, 500 + (max_y - min_y) + 2}.max
 
-cave = (min_y..max_y).map{Array.new(max_x - min_x + 1, '.')}
+cave = (min_y..max_y).map { Array.new(max_x - min_x + 1, '.') }
 paths.each do |path|
   path.each.cons_pair.each do |from, to|
-    dx, dy = to.zip(from).map{|t, f| t - f}.map(&.sign)
+    dx, dy = to.zip(from).map { |t, f| t - f }.map(&.sign)
     x, y = from
     loop do
       cave[y - min_y][x - min_x] = '#'
@@ -50,7 +50,7 @@ until path.empty?
   x, y = path.last
   score1 = cnt_sand if min_y + y == max_y && !score1
 
-  if d = {0, -1, +1}.find{|d| cave[y + 1][x + d] == '.'}
+  if d = {0, -1, +1}.find { |d| cave[y + 1][x + d] == '.' }
     path.push({x + d, y + 1})
   else
     cnt_sand += 1
