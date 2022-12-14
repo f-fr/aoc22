@@ -47,7 +47,7 @@ score2 = nil
 loop do
   x, y = 500 - min_x, 0 - min_y
   loop do
-    score1 = cnt_sand if y == max_y && !score1
+    score1 = cnt_sand if min_y + y == max_y && !score1
 
     if d = {0, -1, +1}.find { |d| cave[y + 1][x + d] == '.' }
       y += 1

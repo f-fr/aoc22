@@ -48,7 +48,7 @@ path = Array({Int32, Int32}).new(max_y - min_y + 2) # empty array with capacity
 path.push({500 - min_x, 0 - min_y})
 until path.empty?
   x, y = path.last
-  score1 = cnt_sand if y == max_y && !score1
+  score1 = cnt_sand if min_y + y == max_y && !score1
 
   if d = {0, -1, +1}.find{|d| cave[y + 1][x + d] == '.'}
     path.push({x + d, y + 1})
