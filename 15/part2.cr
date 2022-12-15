@@ -41,34 +41,28 @@ lines = sensors.each.with_index.flat_map do |sbr, i|
   }.each
 end.to_a
 
-interesting_points = [] of {Int32, Int32}
-(0...lines.size).each do |i|
-  a, b, idx1 = lines[i]
-  (i + 1...lines.size).each do |j|
-    c, d, idx2 = lines[j]
-    if a != c
-      if (d - b).even?
-        x = (d - b) // (a - c)
-        y = a*x + b
-        { {x + 1, y}, {x - 1, y}, {x, y - 1}, {x, y + 1} }
-      else
-        x = (d - b) // (a - c)
-        y = {a*x + b, c*x + d}.min
-        { {x - 1, y}, {x - 1, y + 1}, {x + 2, y}, {x + 2, y + 1}, {x, y - 1}, {x + 1, y - 1}, {x, y + 2}, {x + 1, y + 2} }
-      end.each do |x, y|
-        # only points that have distance exactly r+1 to both sensors are interesting
-        if {idx1, idx2}.all? { |k| dist({x, y}, sensors[k][0]) == sensors[k][2] + 1 }
-          interesting_points << {x, y}
-        end
-      end
+interesting_points = lines.each_combination(2)
+  .select { |lines| lines[0][0] != lines[1][0] }
+  .flat_map do |lines|
+    l1, l2 = lines
+    a, b, idx1 = l1
+    c, d, idx2 = l2
+    if (d - b).even?
+      x = (d - b) // (a - c)
+      y = a*x + b
+      { {x + 1, y}, {x - 1, y}, {x, y - 1}, {x, y + 1} }
+    else
+      x = (d - b) // (a - c)
+      y = {a*x + b, c*x + d}.min
+      { {x - 1, y}, {x - 1, y + 1}, {x + 2, y}, {x + 2, y + 1}, {x, y - 1}, {x + 1, y - 1}, {x, y + 2}, {x + 1, y + 2} }
+    end.each.select { |x, y| 0 <= x < dim && 0 <= y < dim }.select do |x, y|
+      # only points that have distance exactly r+1 to both sensors are interesting
+      {idx1, idx2}.all? { |k| dist({x, y}, sensors[k][0]) == sensors[k][2] + 1 }
     end
-  end
-end
+  end.to_a.uniq!
 
-interesting_points.select! { |x, y| 0 <= x < dim && 0 <= y < dim }
-interesting_points.uniq!
-x, y = interesting_points.find! do |x, y|
+x, y = interesting_points.find do |x, y|
   sensors.all? { |s, _, r| (s[0] - x).abs + (s[1] - y).abs > r }
-end
+end || raise "No unique point found"
 
 puts "x=#{x} y=#{y} score=#{4_000_000i64 * x + y}"
