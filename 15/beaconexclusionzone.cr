@@ -32,16 +32,37 @@ else
   dim = 20
 end
 
-covered = Set({Int32, Int32}).new
-sensors.each do |s, b, r|
-  h = r - (s[1] - y).abs
-  if h >= 0
-    ((s[0] - h)..(s[0] + h)).each { |x| covered << {x, y} }
-  end
-end
-sensors.each { |s, b, _| covered.delete(s); covered.delete(b) }
+def find_intervals(sensors, y, max_x) : {Int32?, Int32, Int32}
+  intervals = sensors.each.compact_map do |s, b, r|
+    h = r - (s[1] - y).abs
+    if h >= 0
+      {Event.new(s[0] - h, -1), Event.new(s[0] + h + 1, +1)}.each
+    else
+      nil
+    end
+  end.flatten.to_a.sort!
 
-puts "Part 1: #{covered.size}"
+  min_covered_x = intervals[0].time
+  max_covered_x = intervals[-1].time - 1
+
+  nopen = 0
+  intervals.each do |ev|
+    case ev.what
+    when -1 then nopen += 1
+    when  1 then nopen -= 1
+    end
+    if nopen == 0 && ev.time >= 0 && ev.time < max_x
+      return {ev.time, min_covered_x, max_covered_x}
+    end
+  end
+  {nil, min_covered_x, max_covered_x}
+end
+
+free_x, min_x, max_x = find_intervals(sensors, y, dim)
+n_beacons_in_y = sensors.each.compact_map { |_, b, _| b[1] == y ? b[0] : nil }.to_set.size
+n_covered = max_x - min_x + 1 - n_beacons_in_y - (free_x ? 1 : 0)
+
+puts "Part 1: min_x:#{min_x}, max_x:#{max_x}, no-beacon:#{n_covered}"
 
 struct Event
   getter time : Int32
@@ -60,25 +81,8 @@ struct Event
 end
 
 dim.times do |y|
-  intervals = sensors.compact_map do |s, b, r|
-    h = r - (s[1] - y).abs
-    if h >= 0
-      (s[0] - h)..(s[0] + h)
-    else
-      nil
-    end
-  end
-  intervals = intervals.flat_map { |inv| {Event.new(inv.begin, -1), Event.new(inv.end + 1, 1)}.each }
-  intervals.sort!
-  # puts intervals.map(&.to_s).join(", ")
-  nopen = 0
-  intervals.each do |ev|
-    case ev.what
-    when -1 then nopen += 1
-    when  1 then nopen -= 1
-    end
-    if nopen == 0 && ev.time >= 0 && ev.time < dim
-      puts "Part 2: x=#{ev.time}, y=#{y} score=#{ev.time.to_i64 * 4_000_000i64 + y.to_i64}"
-    end
+  x, _, _ = find_intervals(sensors, y, dim)
+  if x
+    puts "Part 2: x=#{x}, y=#{y} score=#{x.to_i64 * 4_000_000i64 + y.to_i64}"
   end
 end
