@@ -32,57 +32,38 @@ else
   dim = 20
 end
 
-def find_intervals(sensors, y, max_x) : {Int32?, Int32, Int32}
+def find_intervals(sensors, y, dim) : {Int32?, Int32, Int32}
   intervals = sensors.each.compact_map do |s, b, r|
     h = r - (s[1] - y).abs
     if h >= 0
-      {Event.new(s[0] - h, -1), Event.new(s[0] + h + 1, +1)}.each
+      { {s[0] - h, -1}, {s[0] + h + 1, +1} }.each
     else
       nil
     end
   end.flatten.to_a.sort!
 
-  min_covered_x = intervals[0].time
-  max_covered_x = intervals[-1].time - 1
+  min_covered_x = intervals[0][0]
+  max_covered_x = intervals[-1][0] - 1
 
   nopen = 0
+  open_x = nil
   intervals.each do |ev|
-    case ev.what
+    x = ev[0]
+    case ev[1]
     when -1 then nopen += 1
     when  1 then nopen -= 1
     end
-    if nopen == 0 && ev.time >= 0 && ev.time < max_x
-      return {ev.time, min_covered_x, max_covered_x}
-    end
+    open_x = x if nopen == 0 && x >= 0 && x < dim
   end
-  {nil, min_covered_x, max_covered_x}
+  {open_x, min_covered_x, max_covered_x}
 end
 
 free_x, min_x, max_x = find_intervals(sensors, y, dim)
 n_beacons_in_y = sensors.each.compact_map { |_, b, _| b[1] == y ? b[0] : nil }.to_set.size
 n_covered = max_x - min_x + 1 - n_beacons_in_y - (free_x ? 1 : 0)
-
 puts "Part 1: min_x:#{min_x}, max_x:#{max_x}, no-beacon:#{n_covered}"
-
-struct Event
-  getter time : Int32
-  getter what : Int32
-
-  def initialize(@time, @what)
-  end
-
-  def <=>(ev : Event)
-    {time, what} <=> {ev.time, ev.what}
-  end
-
-  def to_s(io)
-    io << (what < 0 ? "[" : "]") << time
-  end
-end
 
 dim.times do |y|
   x, _, _ = find_intervals(sensors, y, dim)
-  if x
-    puts "Part 2: x=#{x}, y=#{y} score=#{x.to_i64 * 4_000_000i64 + y.to_i64}"
-  end
+  puts "Part 2: x=#{x}, y=#{y} score=#{x.to_i64 * 4_000_000i64 + y.to_i64}" if x
 end
