@@ -70,13 +70,22 @@ def find_intervals(sensors, y, dim) : {Int32?, Int32, Int32, Int32}
     .select { |i, j| 0 <= i[0] && j[0] < dim } # within bounds
     .select { |i, j| !i[2] && !j[2] }          # both must be shrinking
     .map { |i, j| (j[0] - i[0]) // 2 }         # estimate step until [ ... ) -> [)
-    .min?
+    .min? || dim
 
-  # if no step has been found, step to the next sensor below (this
-  # changes the direction of growth of some interval)
-  unless min_step
-    min_step = sensors.each.select { |s, _, _| s[1] > y }.map { |s, _, _| s[1] - y }.min
-  end
+  # estimate next interesting point for each sensor's interval
+  # 1. if the sensor is below it's the y-coordinate of the sensor itself
+  #    because its interval is only growing until then
+  # 2. if the sensor is above then it's the point when one of the interval ends
+  #    enters the feasible region (because then they will be considered in the
+  #    step estimation above).
+  min2 = sensors.each.map do |s, _, r|
+    if s[1] > y
+      s[1] - y
+    else
+      {s[1] + r - s[0] - y, s[1] + r - (dim - s[0]) - y}.each
+    end
+  end.flatten.select(&.> 0).min
+  min_step = {min_step, min2}.min
   {open_x, min_covered_x, max_covered_x, {1, min_step}.max}
 end
 
