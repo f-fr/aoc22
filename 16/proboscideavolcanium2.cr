@@ -79,64 +79,72 @@ struct Pos
   end
 end
 
-curs = { {Pos.new(nodenumbers["AA"], 4), Pos.new(nodenumbers["AA"], 4), flows} => 0 }
-best = nil
 TIME = 30i8
-TIME.times do |i|
-  puts "Minute: #{i - 3} nstates: #{curs.size}"
 
-  nxts = {} of {Pos, Pos, Array(Int8)} => Int32
-  curs.each do |cur, val|
-    u1, u2, flws = cur
+scores = {
+  {Pos.new(nodenumbers["AA"], 0), Pos.new(nodenumbers["AA"], TIME), flows},
+  {Pos.new(nodenumbers["AA"], 4), Pos.new(nodenumbers["AA"], 4), flows},
+}.map do |start|
+  curs = {start => 0}
+  best = nil
+  TIME.times do |i|
+    puts "Minute: #{i + 1} nstates: #{curs.size}"
 
-    # puts "state: #{cur}   value:#{val}"
+    nxts = {} of {Pos, Pos, Array(Int8)} => Int32
+    curs.each do |cur, val|
+      u1, u2, flws = cur
 
-    # skip states that are already too bad
-    # not sure if -xi[1] is valid because we have 2 persons
-    if best
-      bnd = val + flws.sort_by(&.-).each.with_index.reduce(0) { |s, xi| s + xi[0].to_i32 * (TIME - i - 1 - xi[1] * min_d) }
-      next if bnd < best
-    end
+      # puts "state: #{cur}   value:#{val}"
 
-    nxt_flws = flws
-    nxt_val = val
-
-    # compute the next possible positions for each person
-    nxt1, nxt2 = {u1, u2}.map do |u|
-      u, t = u.node, u.time
-      if t > 0
-        {Pos.new(u, t - 1)}.each
-      else
-        wait = 0
-        if nxt_flws[u] > 0
-          # reached closed u, open it
-          wait = 1
-          nxt_val += nxt_flws[u].to_i32 * (TIME - i - 1)
-          nxt_flws = nxt_flws.dup
-          nxt_flws[u] = 0
-        end
-        nxt_flws.each.with_index.select(&.[0].> 0).map(&.[1].to_i8).map { |v| Pos.new(v, dists[u][v] - 1 + wait) }
+      # skip states that are already too bad
+      # not sure if -xi[1] is valid because we have 2 persons
+      if best
+        bnd = val + flws.sort_by(&.-).each.with_index.reduce(0) { |s, xi| s + xi[0].to_i32 * (TIME - i - 1 - xi[1] * min_d) }
+        next if bnd < best
       end
-    end.map(&.reject(&.time.+(i).>= TIME).to_a)
 
-    best = {nxt_val, best || 0}.max
+      nxt_flws = flws
+      nxt_val = val
 
-    # if there no further valves to go, just stay
-    nxt1 << Pos.new(u1.node, TIME) if nxt1.empty?
-    nxt2 << Pos.new(u2.node, TIME) if nxt2.empty?
+      # compute the next possible positions for each person
+      nxt1, nxt2 = {u1, u2}.map do |u|
+        u, t = u.node, u.time
+        if t > 0
+          {Pos.new(u, t - 1)}.each
+        else
+          wait = 0
+          if nxt_flws[u] > 0
+            # reached closed u, open it
+            wait = 1
+            nxt_val += nxt_flws[u].to_i32 * (TIME - i - 1)
+            nxt_flws = nxt_flws.dup
+            nxt_flws[u] = 0
+          end
+          nxt_flws.each.with_index.select(&.[0].> 0).map(&.[1].to_i8).map { |v| Pos.new(v, dists[u][v] - 1 + wait) }
+        end
+      end.map(&.reject(&.time.+(i).>= TIME).to_a)
 
-    nxt1.each do |v1|
-      nxt2.each do |v2|
-        w1, w2 = v1, v2
-        w1, w2 = w2, w1 if w1 > w2
-        if nxt_val > (nxts[{w1, w2, nxt_flws}]? || -1)
-          nxts[{w1, w2, nxt_flws}] = nxt_val
+      best = {nxt_val, best || 0}.max
+
+      # if there no further valves to go, just stay
+      nxt1 << Pos.new(u1.node, TIME) if nxt1.empty?
+      nxt2 << Pos.new(u2.node, TIME) if nxt2.empty?
+
+      nxt1.each do |v1|
+        nxt2.each do |v2|
+          w1, w2 = {v1, v2}.minmax # no idea why I need this, but it does not work with v1, v2 directly
+          if nxt_val > (nxts[{w1, w2, nxt_flws}]? || -1)
+            nxts[{w1, w2, nxt_flws}] = nxt_val
+          end
         end
       end
     end
+    curs = nxts
   end
-  curs = nxts
-  # puts "---------------------"
+  puts "-" * 20
+  {best || 0, curs.each.map(&.[1]).max? || 0}.max
 end
 
-puts "score 1: #{{best || 0, curs.each.map(&.[1]).max? || 0}.max}"
+scores.each_with_index do |score, i|
+  puts "Part #{i + 1}: #{score}"
+end
