@@ -79,12 +79,9 @@ struct Pos
   end
 end
 
-curs = {} of {Pos, Pos, Array(Int8)} => Int32
-curs[{Pos.new(nodenumbers["AA"], 4), Pos.new(nodenumbers["AA"], 4), flows}] = 0
-
+curs = { {Pos.new(nodenumbers["AA"], 4), Pos.new(nodenumbers["AA"], 4), flows} => 0 }
 best = nil
-
-TIME = 30
+TIME = 30i8
 TIME.times do |i|
   puts "Minute: #{i - 3} nstates: #{curs.size}"
 
@@ -103,40 +100,30 @@ TIME.times do |i|
 
     nxt_flws = flws
     nxt_val = val
-    if u1.time > 0
-      nxt1 = {Pos.new(u1.node, u1.time - 1)}.each
-    else
-      wait = 0
-      if flws[u1.node] > 0
-        # reached closed u1, open it
-        wait = 1
-        nxt_val += nxt_flws[u1.node].to_i32 * (TIME - i - 1)
-        nxt_flws = nxt_flws.dup
-        nxt_flws[u1.node] = 0
-      end
-      nxt1 = nxt_flws.each.with_index.select(&.[0].> 0).map { |_, v| Pos.new(v.to_i8, dists[u1.node][v] - 1 + wait) }
-    end
 
-    if u2.time > 0
-      nxt2 = {Pos.new(u2.node, u2.time - 1)}.each
-    else
-      wait = 0
-      if flws[u2.node] > 0
-        # reached closed u2, open it
-        wait = 1
-        nxt_val += nxt_flws[u2.node].to_i32 * (TIME - i - 1)
-        nxt_flws = nxt_flws.dup
-        nxt_flws[u2.node] = 0
+    # compute the next possible positions for each person
+    nxt1, nxt2 = {u1, u2}.map do |u|
+      u, t = u.node, u.time
+      if t > 0
+        {Pos.new(u, t - 1)}.each
+      else
+        wait = 0
+        if nxt_flws[u] > 0
+          # reached closed u, open it
+          wait = 1
+          nxt_val += nxt_flws[u].to_i32 * (TIME - i - 1)
+          nxt_flws = nxt_flws.dup
+          nxt_flws[u] = 0
+        end
+        nxt_flws.each.with_index.select(&.[0].> 0).map(&.[1].to_i8).map { |v| Pos.new(v, dists[u][v] - 1 + wait) }
       end
-      nxt2 = nxt_flws.each.with_index.select(&.[0].> 0).map { |_, v| Pos.new(v.to_i8, dists[u2.node][v] - 1 + wait) }
-    end
+    end.map(&.reject(&.time.+(i).>= TIME).to_a)
 
     best = {nxt_val, best || 0}.max
 
-    nxt1 = nxt1.reject(&.time.+(i).> TIME).to_a
-    nxt2 = nxt2.reject(&.time.+(i).> TIME).to_a
-    nxt1 << Pos.new(u1.node, 0) if nxt1.empty?
-    nxt2 << Pos.new(u2.node, 0) if nxt2.empty?
+    # if there no further valves to go, just stay
+    nxt1 << Pos.new(u1.node, TIME) if nxt1.empty?
+    nxt2 << Pos.new(u2.node, TIME) if nxt2.empty?
 
     nxt1.each do |v1|
       nxt2.each do |v2|
