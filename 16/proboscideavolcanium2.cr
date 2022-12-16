@@ -45,6 +45,8 @@ nodenumbers.keys.each do |u|
   seen.each.select { |v, _| nodenumbers.has_key?(v) }.each { |v, d| dists[nodenumbers[u]][nodenumbers[v]] = d }
 end
 
+min_d = dists.each.flat_map(&.each).reject(&.zero?).min
+
 struct Pos
   include Comparable(Pos)
 
@@ -89,7 +91,10 @@ TIME.times do |i|
 
     # skip states that are already too bad
     # not sure if -xi[1] is valid because we have 2 persons
-    next if best && val + flws.sort_by(&.-).each.with_index.reduce(0) { |s, xi| s + xi[0].to_i32 * (TIME - i - 1 - xi[1]) } < best
+    if best
+      bnd = val + flws.sort_by(&.-).each.with_index.reduce(0) { |s, xi| s + xi[0].to_i32 * (TIME - i - 1 - xi[1] * min_d) }
+      next if bnd < best
+    end
 
     nxt_flws = flws
     nxt_val = val
