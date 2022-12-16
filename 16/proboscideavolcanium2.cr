@@ -45,12 +45,17 @@ nodenumbers.keys.each do |u|
   seen.each.select { |v, _| nodenumbers.has_key?(v) }.each { |v, d| dists[nodenumbers[u]][nodenumbers[v]] = d }
 end
 
+# the shortest distance between two "interesting" valves, used for
+# computing upper bounds for pruning
 min_d = dists.each.flat_map(&.each).reject(&.zero?).min
 
+# A position of one of the persons
 struct Pos
   include Comparable(Pos)
 
+  # The node to be reached next
   getter node : Int8
+  # The number of remaining steps until the is reached
   getter time : Int8
 
   def initialize(@node, @time); end
