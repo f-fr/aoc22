@@ -46,22 +46,15 @@ nodenumbers.keys.each do |u|
 end
 
 struct Pos
+  include Comparable(Pos)
+
   getter node : Int8
   getter time : Int8
-  getter open : Int8? = nil
 
-  def initialize(@node, @time, @open = nil); end
+  def initialize(@node, @time); end
 
-  def <=>(p)
-    {node, time} <=> {p.node, p.time}
-  end
-
-  def >(p)
-    {node, time} > {p.node, p.time}
-  end
-
-  def <(p)
-    {node, time} < {p.node, p.time}
+  def <=>(other : Pos)
+    {node, time} <=> {other.node, other.time}
   end
 
   def to_s(io)
@@ -79,8 +72,6 @@ struct Pos
   end
 end
 
-# p dists
-
 curs = {} of {Pos, Pos, Array(Int8)} => Int32
 curs[{Pos.new(nodenumbers["AA"], 4), Pos.new(nodenumbers["AA"], 4), flows}] = 0
 
@@ -97,41 +88,37 @@ TIME.times do |i|
     # puts "state: #{cur}   value:#{val}"
 
     # skip states that are already too bad
-    if best
-      bnd = val + flws.each.map { |x| x.to_i32 * (TIME - i) }.sum
-      u1.open.try { |x| bnd += x.to_i32 * (TIME - i) }
-      u2.open.try { |x| bnd += x.to_i32 * (TIME - i) }
-      next if bnd < best
-    end
+    # not sure if -xi[1] is valid because we have 2 persons
+    next if best && val + flws.sort_by(&.-).each.with_index.reduce(0) { |s, xi| s + xi[0].to_i32 * (TIME - i - 1 - xi[1]) } < best
 
     nxt_flws = flws
     nxt_val = val
     if u1.time > 0
       nxt1 = {Pos.new(u1.node, u1.time - 1)}.each
-    elsif flws[u1.node] > 0
-      # reached closed u1, open it
-      nxt1 = {Pos.new(u1.node, 0, nxt_flws[u1.node])}.each
-      nxt_flws = nxt_flws.dup
-      nxt_flws[u1.node] = 0
     else
-      if x = u1.open
-        nxt_val += x.to_i32 * (TIME - i)
+      wait = 0
+      if flws[u1.node] > 0
+        # reached closed u1, open it
+        wait = 1
+        nxt_val += nxt_flws[u1.node].to_i32 * (TIME - i - 1)
+        nxt_flws = nxt_flws.dup
+        nxt_flws[u1.node] = 0
       end
-      nxt1 = nxt_flws.each.with_index.select(&.[0].> 0).map { |_, v| Pos.new(v.to_i8, dists[u1.node][v] - 1) }
+      nxt1 = nxt_flws.each.with_index.select(&.[0].> 0).map { |_, v| Pos.new(v.to_i8, dists[u1.node][v] - 1 + wait) }
     end
 
     if u2.time > 0
       nxt2 = {Pos.new(u2.node, u2.time - 1)}.each
-    elsif nxt_flws[u2.node] > 0
-      # reached closed u2, open it
-      nxt2 = {Pos.new(u2.node, 0, nxt_flws[u2.node])}.each
-      nxt_flws = nxt_flws.dup
-      nxt_flws[u2.node] = 0
     else
-      if x = u2.open
-        nxt_val += x.to_i32 * (TIME - i)
+      wait = 0
+      if flws[u2.node] > 0
+        # reached closed u2, open it
+        wait = 1
+        nxt_val += nxt_flws[u2.node].to_i32 * (TIME - i - 1)
+        nxt_flws = nxt_flws.dup
+        nxt_flws[u2.node] = 0
       end
-      nxt2 = nxt_flws.each.with_index.select(&.[0].> 0).map { |_, v| Pos.new(v.to_i8, dists[u2.node][v] - 1) }
+      nxt2 = nxt_flws.each.with_index.select(&.[0].> 0).map { |_, v| Pos.new(v.to_i8, dists[u2.node][v] - 1 + wait) }
     end
 
     best = {nxt_val, best || 0}.max
