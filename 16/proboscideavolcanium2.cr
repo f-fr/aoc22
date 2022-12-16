@@ -16,22 +16,24 @@
 # along with this program.  If not, see  <http://www.gnu.org/licenses/>
 
 neighbors = Hash(String, Array(String)).new { |h, k| h[k] = [] of String }
-flows = {} of String => Int32
+nodenumbers = {} of String => Int8
+flows = [] of Int8
 
 ARGF.each_line do |line|
   raise "Invalid line" unless line =~ /Valve (\w+) has flow rate=(\d+); tunnels? leads? to valves? ([[:word:], ]+)$/
   neighbors[$1] = $3.split(/\s*,\s*/)
-  neighbors[$1] << $1
-  flow = $2.to_i
-  flows[$1] = flow if flow > 0
+  flow = $2.to_i8
+  if $1 == "AA" || flow > 0
+    nodenumbers[$1] = nodenumbers.size.to_i8
+    flows << flow
+  end
 end
 
 # compute all shortest paths
-dists = {} of {String, String} => Int32
-nodes = neighbors.keys
-nodes.each do |u|
+dists = nodenumbers.size.times.map { Array.new(nodenumbers.size, Int8::MAX) }.to_a
+nodenumbers.keys.each do |u|
   q = Deque{u}
-  seen = {u => 0}
+  seen = {u => 0i8}
   while v = q.shift?
     neighbors[v].each do |w|
       unless seen.has_key?(w)
@@ -40,13 +42,13 @@ nodes.each do |u|
       end
     end
   end
-  seen.each { |v, d| dists[{u, v}] = d }
+  seen.each.select { |v, _| nodenumbers.has_key?(v) }.each { |v, d| dists[nodenumbers[u]][nodenumbers[v]] = d }
 end
 
 struct Pos
-  getter node : String
-  getter time : Int32
-  getter open : Int32? = nil
+  getter node : Int8
+  getter time : Int8
+  getter open : Int8? = nil
 
   def initialize(@node, @time, @open = nil); end
 
@@ -78,10 +80,9 @@ struct Pos
 end
 
 # p dists
-p dists.select(&.[0].== "AA").select { |uv, d| flows.has_key?(uv[1]) }
 
-curs = {} of {Pos, Pos, Hash(String, Int32)} => Int32
-curs[{Pos.new("AA", 4), Pos.new("AA", 4), flows}] = 0
+curs = {} of {Pos, Pos, Array(Int8)} => Int32
+curs[{Pos.new(nodenumbers["AA"], 4), Pos.new(nodenumbers["AA"], 4), flows}] = 0
 
 best = nil
 
@@ -89,7 +90,7 @@ TIME = 30
 TIME.times do |i|
   puts "Minute: #{i - 3} nstates: #{curs.size}"
 
-  nxts = {} of {Pos, Pos, Hash(String, Int32)} => Int32
+  nxts = {} of {Pos, Pos, Array(Int8)} => Int32
   curs.each do |cur, val|
     u1, u2, flws = cur
 
@@ -97,46 +98,40 @@ TIME.times do |i|
 
     # skip states that are already too bad
     if best
-      bnd = val + flws.each_value.map { |x| x * (TIME - i) }.sum
-      u1.open.try { |x| bnd += x * (TIME - i) }
-      u2.open.try { |x| bnd += x * (TIME - i) }
+      bnd = val + flws.each.map { |x| x.to_i32 * (TIME - i) }.sum
+      u1.open.try { |x| bnd += x.to_i32 * (TIME - i) }
+      u2.open.try { |x| bnd += x.to_i32 * (TIME - i) }
       next if bnd < best
     end
 
     nxt_flws = flws
     nxt_val = val
-    open1 = nil
-    open2 = nil
     if u1.time > 0
       nxt1 = {Pos.new(u1.node, u1.time - 1)}.each
-    elsif flws.has_key?(u1.node)
+    elsif flws[u1.node] > 0
       # reached closed u1, open it
       nxt1 = {Pos.new(u1.node, 0, nxt_flws[u1.node])}.each
       nxt_flws = nxt_flws.dup
-      nxt_flws.delete(u1.node)
-      open1 = "open1:#{u1.node}"
+      nxt_flws[u1.node] = 0
     else
       if x = u1.open
-        nxt_val += x * (TIME - i)
-        open1 = "opened1:#{u1.node} (#{x * (TIME - i)})"
+        nxt_val += x.to_i32 * (TIME - i)
       end
-      nxt1 = nodes.select { |v| nxt_flws.has_key?(v) }.map { |v| Pos.new(v, dists[{u1.node, v}] - 1) }
+      nxt1 = nxt_flws.each.with_index.select(&.[0].> 0).map { |_, v| Pos.new(v.to_i8, dists[u1.node][v] - 1) }
     end
 
     if u2.time > 0
       nxt2 = {Pos.new(u2.node, u2.time - 1)}.each
-    elsif nxt_flws.has_key?(u2.node)
+    elsif nxt_flws[u2.node] > 0
       # reached closed u2, open it
       nxt2 = {Pos.new(u2.node, 0, nxt_flws[u2.node])}.each
       nxt_flws = nxt_flws.dup
-      nxt_flws.delete(u2.node)
-      # open2 = "open2:#{u2.node}"
+      nxt_flws[u2.node] = 0
     else
       if x = u2.open
-        nxt_val += x * (TIME - i)
-        # open2 = "opened2:#{u2.node} (#{x * (TIME - i)})"
+        nxt_val += x.to_i32 * (TIME - i)
       end
-      nxt2 = nodes.select { |v| nxt_flws.has_key?(v) }.map { |v| Pos.new(v, dists[{u2.node, v}] - 1) }
+      nxt2 = nxt_flws.each.with_index.select(&.[0].> 0).map { |_, v| Pos.new(v.to_i8, dists[u2.node][v] - 1) }
     end
 
     best = {nxt_val, best || 0}.max
@@ -145,26 +140,19 @@ TIME.times do |i|
     nxt2 = nxt2.reject(&.time.+(i).> TIME).to_a
     nxt1 << Pos.new(u1.node, 0) if nxt1.empty?
     nxt2 << Pos.new(u2.node, 0) if nxt2.empty?
-    # puts "  NXTS: #{nxt1} #{nxt2}"
 
     nxt1.each do |v1|
       nxt2.each do |v2|
-        # puts "  CHECK STEP;#{u1} -> #{v1}; #{u2} -> #{v2}"
         w1, w2 = v1, v2
         w1, w2 = w2, w1 if w1 > w2
         if nxt_val > (nxts[{w1, w2, nxt_flws}]? || -1)
-          # puts "  #{open1} #{open2};#{u1} -> #{v1}; #{u2} -> #{v2} (#{nxt_val})"
           nxts[{w1, w2, nxt_flws}] = nxt_val
         end
       end
     end
   end
   curs = nxts
-  puts best
   # puts "---------------------"
 end
 
-# curs.each do |cur, val|
-#   puts "state: #{cur}   value:#{val}"
-# end
 puts "score 1: #{{best || 0, curs.each.map(&.[1]).max? || 0}.max}"
