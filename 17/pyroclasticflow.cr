@@ -82,7 +82,7 @@ seen = {} of {HMap, Int32} => Int32
         break
       end
     else
-      cycle_heights.delete_at(1..)
+      cycle_heights.truncate(0, 1)
     end
     seen[{hmap, off}] = i
   end
