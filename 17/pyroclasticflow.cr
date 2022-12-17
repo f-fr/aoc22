@@ -34,7 +34,10 @@ cycle_start = 0
 cycle_end = 0
 cycle_heights = [] of Int32
 
-seen = {} of {Array(Int32), Int32} => Int32
+alias HMap = StaticArray(Int32, 7)
+# {HeightPattern, WindPosition} => SeenLastStoneNr
+seen = {} of {HMap, Int32} => Int32
+
 (0..).each do |i|
   stone, stone_i = stones.next.as({Array({Int32, Int32}), Int32})
   pieces = stone.map { |x, y| {x + 2, y + h + 3 + 1} }
@@ -72,9 +75,8 @@ seen = {} of {Array(Int32), Int32} => Int32
   cycle_heights << h
 
   if stone_i % 5 == 0 && (off = off.not_nil!)
-    hmap = hx.map { |t| h - t }
+    hmap = HMap.new { |i| h - hx[i] }
     if cycle_start = seen[{hmap, off}]?
-      # puts "Repeat #{cycle_start} -> #{i}  count:#{count_repeated}"
       if cycle_heights.size >= (i - cycle_start) * 5 && i + 1 >= 2022
         cycle_end = i
         break
