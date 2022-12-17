@@ -94,13 +94,13 @@ cycle_len = cycle_end - cycle_start
 puts "Cycle start: after #{cycle_start} stones (start with stone nr: #{cycle_start + 1})"
 puts "Cycle length: #{cycle_len}"
 
-b = (N - cycle_start - 1) // (cycle_end - cycle_start)
-c = (N - cycle_start - 1) % (cycle_end - cycle_start)
+b = (N - cycle_start - 1) // cycle_len
+c = (N - cycle_start - 1) % cycle_len
 
 h_beg = cycle_heights[-cycle_len - 1]
 h_end = cycle_heights[-1]
 
-score2 = h_beg.to_i64 + b.to_i64 * (h_end - h_beg) + cycle_heights[-cycle_len - 1 + c] - h_beg
+score2 = b.to_i64 * (h_end - h_beg) + cycle_heights[-cycle_len - 1 + c]
 
 puts "Part 1: #{score1}"
 puts "Part 2: #{score2}"
