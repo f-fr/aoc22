@@ -17,11 +17,11 @@
 
 N = 1_000_000_000_000
 
-stones = {[{0, 0}, {1, 0}, {2, 0}, {3, 0}],
-          [{1, 0}, {1, 2}, {0, 1}, {1, 1}, {2, 1}],
-          [{0, 0}, {1, 0}, {2, 0}, {2, 1}, {2, 2}],
-          [{0, 0}, {0, 1}, {0, 2}, {0, 3}],
-          [{0, 0}, {1, 0}, {0, 1}, {1, 1}]}.each.with_index.cycle
+stones = {StaticArray[{0, 0}, {1, 0}, {2, 0}, {3, 0}, {3, 0}],
+          StaticArray[{1, 0}, {1, 2}, {0, 1}, {1, 1}, {2, 1}],
+          StaticArray[{0, 0}, {1, 0}, {2, 0}, {2, 1}, {2, 2}],
+          StaticArray[{0, 0}, {0, 1}, {0, 2}, {0, 3}, {0, 3}],
+          StaticArray[{0, 0}, {1, 0}, {0, 1}, {1, 1}, {1, 1}]}.each.with_index.cycle
 wind = ARGF.gets_to_end.strip.each_char.with_index.cycle
 
 h = 0
@@ -39,7 +39,7 @@ alias HMap = StaticArray(Int32, 7)
 seen = {} of {HMap, Int32} => Int32
 
 (0..).each do |i|
-  stone, stone_i = stones.next.as({Array({Int32, Int32}), Int32})
+  stone, stone_i = stones.next.as({StaticArray({Int32, Int32}, 5), Int32})
   pieces = stone.map { |x, y| {x + 2, y + h + 3 + 1} }
   max_h = pieces.map(&.[1]).max
   while field.size <= max_h
