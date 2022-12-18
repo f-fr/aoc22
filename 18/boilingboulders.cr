@@ -37,29 +37,25 @@ ny = cubes.map(&.[1]).max + 1
 nz = cubes.map(&.[2]).max + 1
 
 # bfs from outside
-u = {nx, ny, nz}
+u = {-1, -1, -1}
 seen = Set{u}
 q = Deque{u}
+score2 = 0
 while u = q.shift?
   x, y, z = u
   DIRS.each do |dx, dy, dz|
     v = {x + dx, y + dy, z + dz}
-    next unless 0 <= v[0] <= nx
-    next unless 0 <= v[1] <= ny
-    next unless 0 <= v[2] <= nz
-    next if cubes.includes?(v)
-    next if seen.includes?(v)
-    seen.add(v)
-    q << v
+    next unless -1 <= v[0] <= nx
+    next unless -1 <= v[1] <= ny
+    next unless -1 <= v[2] <= nz
+    if cubes.includes?(v)
+      score2 += 1
+    elsif !seen.includes?(v)
+      seen.add(v)
+      q << v
+    end
   end
 end
-
-all_cubes = (0..nx).to_a.cartesian_product((0..ny).to_a, (0..nz).to_a).to_set
-inair_cubes = all_cubes # all cubes
-  .subtract(cubes)      # minus solid cubes
-  .subtract(seen)       # minus air cubes reachable from outside
-
-score2 = score1 - 6 * (inair_cubes.size) + count_edges(inair_cubes) * 2
 
 puts "Part 1: #{score1}"
 puts "Part 2: #{score2}"
