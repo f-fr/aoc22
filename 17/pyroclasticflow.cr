@@ -75,7 +75,7 @@ seen = {} of {HMap, Int32} => Int32
   cycle_heights << h
 
   if stone_i % 5 == 0 && (off = off.not_nil!)
-    hmap = HMap.new { |i| h - hx[i] }
+    hmap = HMap.new { |i| hx[i] > 0 ? h - hx[i] : Int32::MAX }
     if cycle_start = seen.put({hmap, off}, i) { nil }
       if cycle_heights.size >= (i - cycle_start) * 5 && i + 1 >= 2022
         cycle_end = i

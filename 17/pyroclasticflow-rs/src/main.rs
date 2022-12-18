@@ -99,7 +99,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         let off = off.unwrap();
         if stone_i % 5 == 0 {
-            let hmap = hx.map(|t| h - t);
+            let hmap = hx.map(|t| if t > 0 { h - t } else { i32::MAX });
             if let Some(start) = seen.insert((hmap, off), i) {
                 if i32::try_from(cycle_heights.len())? >= (i - start) * 5 && i + 1 >= 2022 {
                     cycle_start = Some(start);
