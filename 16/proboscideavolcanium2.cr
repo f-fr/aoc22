@@ -15,39 +15,152 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see  <http://www.gnu.org/licenses/>
 
-neighbors = Hash(String, Array(String)).new { |h, k| h[k] = [] of String }
-nodenumbers = {} of String => Int8
-flows = [] of Int8
-
-ARGF.each_line do |line|
+nodes = ARGF.each_line.map do |line|
   raise "Invalid line" unless line =~ /Valve (\w+) has flow rate=(\d+); tunnels? leads? to valves? ([[:word:], ]+)$/
-  neighbors[$1] = $3.split(/\s*,\s*/)
-  flow = $2.to_i8
-  if $1 == "AA" || flow > 0
-    nodenumbers[$1] = nodenumbers.size.to_i8
-    flows << flow
-  end
-end
+  {$1, {$2.to_i, $3.split(/\s*,\s*/)}}
+end.to_h
 
-# compute all shortest paths
-dists = nodenumbers.size.times.map { Array.new(nodenumbers.size, Int8::MAX) }.to_a
-nodenumbers.keys.each do |u|
-  q = Deque{u}
-  seen = {u => 0i8}
-  while v = q.shift?
-    neighbors[v].each do |w|
-      unless seen.has_key?(w)
-        seen[w] = seen[v] + 1
-        q << w
+TIME = 30i8
+
+class Tunnels
+  @nodenumbers : Hash(String, Int8)
+  @flows : Array(Int32)
+  @dists : Array(Array(Int8))
+  @middles : Hash({Int32, Int32}, Array(Int32))
+  @min_d : Int8
+
+  getter score1 : Int32? = nil
+  getter score2 : Int32? = nil
+
+  alias State = {Pos, Pos, Array(Int32)}
+
+  def initialize(nodes : Hash(String, {Int32, Array(String)}))
+    @flows = [] of Int32
+    @nodenumbers = nodes.each.select do |u, flw|
+      if u == "AA" || flw[0] > 0
+        @flows << flw[0]
+        true
+      end
+    end.with_index.map { |u, i| {u[0], i.to_i8} }.to_h
+
+    n = @nodenumbers.size
+
+    # compute all shortest paths
+    @dists = n.times.map { Array.new(n, Int8::MAX) }.to_a
+    @nodenumbers.each_key do |u|
+      q = Deque{u}
+      seen = {u => 0}
+      while v = q.shift?
+        nodes[v][1].each do |w|
+          unless seen.has_key?(w)
+            seen[w] = seen[v] + 1
+            q << w
+          end
+        end
+      end
+      seen.each
+        .select { |v, _| @nodenumbers.has_key?(v) }
+        .each { |v, d| @dists[@nodenumbers[u]][@nodenumbers[v]] = d.to_i8 }
+    end
+
+    # the shortest distance between two "interesting" valves, used for
+    # computing upper bounds for pruning
+    @min_d = @dists.each.flat_map(&.each).reject(&.zero?).min
+
+    # compute list of middle nodes of shortest paths
+    @middles = Hash({Int32, Int32}, Array(Int32)).new { |h, k| h[k] = [] of Int32 }
+    n.times do |u|
+      n.times do |v|
+        next if v == u
+        n.times do |w|
+          next if u == w || v == w
+          @middles[{u, v}] << w if @dists[u][v] == @dists[u][w] + @dists[w][v]
+        end
       end
     end
   end
-  seen.each.select { |v, _| nodenumbers.has_key?(v) }.each { |v, d| dists[nodenumbers[u]][nodenumbers[v]] = d }
-end
 
-# the shortest distance between two "interesting" valves, used for
-# computing upper bounds for pruning
-min_d = dists.each.flat_map(&.each).reject(&.zero?).min
+  def solve
+    best = 0
+    @score1, @score2 = {
+      {Pos.new(@nodenumbers["AA"], 0), Pos.new(@nodenumbers["AA"], TIME), @flows},
+      {Pos.new(@nodenumbers["AA"], 4), Pos.new(@nodenumbers["AA"], 4), @flows},
+    }.map do |start|
+      best = search_solution(start, best, heur: true)
+      puts "Bound: #{best}"
+      best = search_solution(start, best, heur: false)
+    end
+  end
+
+  # Start search
+  #  - from `start` state
+  #  - with best known bound `best`
+  #  - use only heuristic of `heur` is `true`, otherwise use exact algorithm
+  private def search_solution(start : State, best : Int32, heur : Bool)
+    curs = {start => 0}
+    TIME.times do |i|
+      puts "Minute: #{i + 1} nstates: #{curs.size}"
+
+      nxts = {} of State => Int32
+      curs.each do |cur, val|
+        u1, u2, flws = cur
+
+        bnd = val + flws.sort_by(&.-).each.with_index.reduce(0) { |s, xi| s + xi[0].to_i32 * (TIME - i - 1 - xi[1] // 2 * (@min_d + 1)) }
+        next if bnd < best
+
+        nxt_flws = flws
+        nxt_val = val
+
+        # compute the next possible positions for each person
+        nxt1, nxt2 = {u1, u2}.map do |u|
+          u, t = u.node, u.time
+          if t > 0
+            {Pos.new(u, t - 1)}.each
+          else
+            wait = 0
+            if nxt_flws[u] > 0
+              # reached closed u, open it
+              wait = 1
+              nxt_val += nxt_flws[u].to_i32 * (TIME - i - 1)
+              nxt_flws = nxt_flws.dup
+              nxt_flws[u] = 0
+            end
+            nxt_flws.each.with_index.select do |vflw, v|
+              next false if vflw == 0
+              next false if heur && @middles[{u, v}]?.try(&.any? { |w| nxt_flws[w] > 0 })
+              true
+            end.map(&.[1].to_i8).map { |v| Pos.new(v, @dists[u][v] - 1 + wait) }
+          end
+        end.map(&.reject(&.time.+(i).>= TIME).to_a)
+
+        best = {nxt_val, best || 0}.max
+
+        # if there no further valves to go, just stay
+        nxt1 << Pos.new(u1.node, TIME) if nxt1.empty?
+        nxt2 << Pos.new(u2.node, TIME) if nxt2.empty?
+
+        if heur
+          {nxt1, nxt2}.each do |nxt|
+            nxt.sort_by! { |st| -(TIME - i - 1 - st.time).to_i32 * nxt_flws[st.node] }
+            nxt.truncate(0, 3)
+          end
+        end
+
+        nxt1.each do |v1|
+          nxt2.each do |v2|
+            w1, w2 = {v1, v2}.minmax # no idea why I need this, but it does not work with v1, v2 directly
+            if nxt_val > (nxts[{w1, w2, nxt_flws}]? || -1)
+              nxts[{w1, w2, nxt_flws}] = nxt_val
+            end
+          end
+        end
+      end
+      curs = nxts
+    end
+    puts "-" * 20
+    best
+  end
+end
 
 # A position of one of the persons
 struct Pos
@@ -73,78 +186,12 @@ struct Pos
     @node.inspect(io)
     io << ","
     @time.inspect(io)
-    io << ","
-    @open.inspect(io) # 42014
     io << ")"
   end
 end
 
-TIME = 30i8
+tunnels = Tunnels.new(nodes)
+tunnels.solve
 
-scores = {
-  {Pos.new(nodenumbers["AA"], 0), Pos.new(nodenumbers["AA"], TIME), flows},
-  {Pos.new(nodenumbers["AA"], 4), Pos.new(nodenumbers["AA"], 4), flows},
-}.map do |start|
-  curs = {start => 0}
-  best = nil
-  TIME.times do |i|
-    puts "Minute: #{i + 1} nstates: #{curs.size}"
-
-    nxts = {} of {Pos, Pos, Array(Int8)} => Int32
-    curs.each do |cur, val|
-      u1, u2, flws = cur
-
-      # puts "state: #{cur}   value:#{val}"
-
-      # skip states that are already too bad
-      # not sure if -xi[1] is valid because we have 2 persons
-      if best
-        bnd = val + flws.sort_by(&.-).each.with_index.reduce(0) { |s, xi| s + xi[0].to_i32 * (TIME - i - 1 - xi[1] * min_d) }
-        next if bnd < best
-      end
-
-      nxt_flws = flws
-      nxt_val = val
-
-      # compute the next possible positions for each person
-      nxt1, nxt2 = {u1, u2}.map do |u|
-        u, t = u.node, u.time
-        if t > 0
-          {Pos.new(u, t - 1)}.each
-        else
-          wait = 0
-          if nxt_flws[u] > 0
-            # reached closed u, open it
-            wait = 1
-            nxt_val += nxt_flws[u].to_i32 * (TIME - i - 1)
-            nxt_flws = nxt_flws.dup
-            nxt_flws[u] = 0
-          end
-          nxt_flws.each.with_index.select(&.[0].> 0).map(&.[1].to_i8).map { |v| Pos.new(v, dists[u][v] - 1 + wait) }
-        end
-      end.map(&.reject(&.time.+(i).>= TIME).to_a)
-
-      best = {nxt_val, best || 0}.max
-
-      # if there no further valves to go, just stay
-      nxt1 << Pos.new(u1.node, TIME) if nxt1.empty?
-      nxt2 << Pos.new(u2.node, TIME) if nxt2.empty?
-
-      nxt1.each do |v1|
-        nxt2.each do |v2|
-          w1, w2 = {v1, v2}.minmax # no idea why I need this, but it does not work with v1, v2 directly
-          if nxt_val > (nxts[{w1, w2, nxt_flws}]? || -1)
-            nxts[{w1, w2, nxt_flws}] = nxt_val
-          end
-        end
-      end
-    end
-    curs = nxts
-  end
-  puts "-" * 20
-  {best || 0, curs.each.map(&.[1]).max? || 0}.max
-end
-
-scores.each_with_index do |score, i|
-  puts "Part #{i + 1}: #{score}"
-end
+puts "Part 1: #{tunnels.score1}"
+puts "Part 2: #{tunnels.score2}"
