@@ -195,6 +195,41 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
             };
 
+            let greedy_bnd = |u: State| {
+                let mut value = 0;
+                let mut minerals = u.minerals;
+                let mut robots = u.robots;
+                let mut build = [false; 3];
+                if let Some(b) = u.build {
+                    build[b] = true;
+                }
+                let time = minutes - u.time;
+                for t in 0..time {
+                    for i in 0..=2 {
+                        minerals[i] += robots[i]
+                    }
+                    for i in 0..=2 {
+                        if build[i] {
+                            robots[i] += 1
+                        }
+                    }
+                    build = [false; 3];
+                    for r in 1..=3 {
+                        if r == 0 || (1..=2).all(|i| minerals[i] >= blueprint[r][i]) {
+                            for i in 1..=2 {
+                                minerals[i] -= blueprint[r][i]
+                            }
+                            if r < 3 {
+                                build[r] = true
+                            } else if t + 2 < time {
+                                value += time - t - 2
+                            }
+                        }
+                    }
+                }
+                -(value as isize)
+            };
+
             let mut best = (0, start);
             for (v, _, d) in astar::start(
                 &g,
@@ -210,7 +245,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         0
                     }
                 },
-                bnd,
+                greedy_bnd,
             ) {
                 let obj = -(d + bnd(v));
                 if v.time == minutes {
@@ -223,7 +258,18 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
             }
 
-            println!("blueprint: {}, value: {}", i + 1, best.0);
+            println!(
+                "blueprint: {}, value: {} bnd: {}",
+                i + 1,
+                best.0,
+                (greedy_bnd)(State {
+                    time: 0,
+                    minerals: [0, 0, 0],
+                    robots: [1, 0, 0],
+                    build: None,
+                })
+                .abs()
+            );
             if part == 1 {
                 score += (i + 1) as isize * best.0;
             } else {
