@@ -61,7 +61,30 @@ end
 def estimate_ub(state : State, time : Int32) : Int32
   # the most stupid upper bound: suppose the number of
   # geode-robots increases each time-step by 1
-  val = (time - 2) * (time - 1) // 2
+  val = {0, (time - 2) * (time - 1) // 2}.max
+end
+
+def greedy_ub(blueprint, state : State, time : Int32) : Int32
+  value = 0
+  minerals = StaticArray[state.minerals[0], state.minerals[1], state.minerals[2]]
+  robots = StaticArray[state.robots[0], state.robots[1], state.robots[2]]
+  build = StaticArray[false, false, false]
+  time.times do |t|
+    (0..2).each { |i| minerals[i] += robots[i] }
+    (0..2).each { |i| robots[i] += 1 if build[i] }
+    build.fill(false)
+    (1..3).each do |r|
+      if (1..2).all? { |i| minerals[i] >= blueprint[r][i] }
+        (0..2).each { |i| minerals[i] -= blueprint[r][i] }
+        if r < 3
+          build[r] = true
+        else
+          value += time - t - 2
+        end
+      end
+    end
+  end
+  value
 end
 
 { {24, blueprints.size}, {32, 3} }.each_with_index do |params, part|
@@ -72,6 +95,7 @@ end
 
   blueprints.first(nblueprints).each_with_index do |blueprint, bl_idx|
     print " blueprint %2d: " % {bl_idx + 1}
+    print " (ub: %2d %2d)" % {greedy_ub(blueprint, State.new({0, 0, 0}, {1, 0, 0}), minutes), estimate_ub(State.new({0, 0, 0}, {1, 0, 0}), minutes)}
     best = 0
     states = {State.new({0, 0, 0}, {1, 0, 0}) => 0}
     max_robots = {0, 1, 2}.map do |i|
@@ -84,7 +108,8 @@ end
       states.each do |state, val|
         # no production
         nxt = state.step
-        next if val + estimate_ub(nxt, minutes - minute) < best
+        # next if val + estimate_ub(nxt, minutes - minute) < best
+        next if val + greedy_ub(blueprint, nxt, minutes - minute) < best
         nxt_states[nxt] = val if (nxt_states[nxt]? || val - 1) < val
         # try to build each robot
         blueprint.each_with_index do |reqs, r|
