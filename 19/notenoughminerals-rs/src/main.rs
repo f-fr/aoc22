@@ -184,17 +184,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                 build: None,
             };
 
-            // estimate remaining objective in the most stupid way
-            // (each remaining timestep we get a new cracking robot)
-            let bnd = |u: State| {
-                let t = (minutes - u.time) as isize;
-                if t > 0 {
-                    -(t - 2) * (t - 1) / 2
-                } else {
-                    0
-                }
-            };
-
             let greedy_bnd = |u: State| {
                 let mut value = 0;
                 let mut minerals = u.minerals;
@@ -243,7 +232,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 },
                 greedy_bnd,
             ) {
-                let obj = -(d + bnd(v));
+                let obj = -(d + greedy_bnd(v));
                 if v.time == minutes && obj > best.0 {
                     best = (obj, v);
                 }
