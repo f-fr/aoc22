@@ -175,7 +175,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                 break;
             }
             let minutes = if part == 1 { 24 } else { 32 };
-            let c = minutes * minutes;
             let g = StateGraph::new(blueprint, minutes);
 
             let start = State {
@@ -188,9 +187,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             // estimate remaining objective in the most stupid way
             // (each remaining timestep we get a new cracking robot)
             let bnd = |u: State| {
-                let t = minutes - u.time;
+                let t = (minutes - u.time) as isize;
                 if t > 0 {
-                    t * c - (t - 2) * (t - 1) / 2
+                    -(t - 2) * (t - 1) / 2
                 } else {
                     0
                 }
@@ -203,17 +202,17 @@ fn main() -> Result<(), Box<dyn Error>> {
                 |e| {
                     if e.robot == 3 {
                         if e.time + 2 > minutes {
-                            c
+                            0
                         } else {
-                            c - (minutes - e.time - 2)
+                            -((minutes - e.time - 2) as isize)
                         }
                     } else {
-                        c
+                        0
                     }
                 },
                 bnd,
             ) {
-                let obj = minutes * c - (d + bnd(v));
+                let obj = -(d + bnd(v));
                 if v.time == minutes {
                     if obj > best.0 {
                         best = (obj, v);
@@ -226,7 +225,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             println!("blueprint: {}, value: {}", i + 1, best.0);
             if part == 1 {
-                score += (i + 1) * best.0;
+                score += (i + 1) as isize * best.0;
             } else {
                 score *= best.0;
             }
