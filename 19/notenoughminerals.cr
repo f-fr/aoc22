@@ -58,6 +58,12 @@ struct State
   end
 end
 
+def estimate_ub(state : State, time : Int32) : Int32
+  # the most stupid upper bound: suppose the number of
+  # geode-robots increases each time-step by 1
+  val = (time - 2) * (time - 1) // 2
+end
+
 { {24, blueprints.size}, {32, 3} }.each_with_index do |params, part|
   minutes, nblueprints = params
 
@@ -65,7 +71,7 @@ end
   score = part # either 0 or 1
 
   blueprints.first(nblueprints).each_with_index do |blueprint, bl_idx|
-    puts "========== blueprint: #{bl_idx} =========="
+    print " blueprint %2d: " % {bl_idx + 1}
     best = 0
     states = {State.new({0, 0, 0}, {1, 0, 0}) => 0}
     max_robots = {0, 1, 2}.map do |i|
@@ -73,25 +79,26 @@ end
     end
 
     minutes.times do |minute|
-      puts "--- minute: #{minute + 1} ---"
+      print "."
       nxt_states = {} of State => Int32
       states.each do |state, val|
         # no production
         nxt = state.step
-        next if val + 4 * (minutes - minute) < best
+        next if val + estimate_ub(nxt, minutes - minute) < best
         nxt_states[nxt] = val if (nxt_states[nxt]? || val - 1) < val
+        # try to build each robot
         blueprint.each_with_index do |reqs, r|
           next if r < 3 && nxt.robots[r] >= max_robots[r]
-          if nxt2 = nxt.produce(reqs, r)
-            new_val = val
-            new_val += (minutes - minute - 2) if r == 3 # obsidian robot -> compute produced geodes
-            best = {best, new_val}.max
-            nxt_states[nxt2] = new_val if (nxt_states[nxt2]? || val - 1) < new_val
-          end
+          next unless nxt2 = nxt.produce(reqs, r)
+          new_val = val
+          new_val += (minutes - minute - 2) if r == 3 # obsidian robot -> compute cracked geodes
+          best = {best, new_val}.max
+          nxt_states[nxt2] = new_val if (nxt_states[nxt2]? || val - 1) < new_val
         end
       end
       states = nxt_states
     end
+    puts " (#{best})"
     if part == 0
       score += (bl_idx + 1) * best
     else
