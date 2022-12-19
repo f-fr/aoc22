@@ -235,12 +235,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                 &g,
                 start,
                 |e| {
-                    if e.robot == 3 {
-                        if e.time + 2 > minutes {
-                            0
-                        } else {
-                            -((minutes - e.time - 2) as isize)
-                        }
+                    if e.robot == 3 && e.time + 2 <= minutes {
+                        -((minutes - e.time - 2) as isize)
                     } else {
                         0
                     }
