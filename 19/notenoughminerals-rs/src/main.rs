@@ -252,18 +252,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
             }
 
-            println!(
-                "blueprint: {}, value: {} bnd: {}",
-                i + 1,
-                best.0,
-                (greedy_bnd)(State {
-                    time: 0,
-                    minerals: [0, 0, 0],
-                    robots: [1, 0, 0],
-                    build: None,
-                })
-                .abs()
-            );
+            println!("blueprint: {}, value: {}", i + 1, best.0,);
             if part == 1 {
                 score += (i + 1) as isize * best.0;
             } else {
