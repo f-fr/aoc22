@@ -248,10 +248,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                 greedy_bnd,
             ) {
                 let obj = -(d + bnd(v));
-                if v.time == minutes {
-                    if obj > best.0 {
-                        best = (obj, v);
-                    }
+                if v.time == minutes && obj > best.0 {
+                    best = (obj, v);
                 }
                 if obj <= best.0 {
                     break;
