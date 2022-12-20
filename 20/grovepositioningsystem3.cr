@@ -42,11 +42,16 @@ class Tree
   def initialize
   end
 
+  # Return the number of elements in this tree
+  #
+  # This is a O(1) operation.
   def size : Int32
     @root.try(&.size) || 0
   end
 
   # Return the position of `node`
+  #
+  # This is a O(log n) operation.
   def position(node : Node) : Int32
     u = node
     pos = u.size - (u.right.try(&.size) || 0) - 1
@@ -59,12 +64,18 @@ class Tree
     pos
   end
 
+  # Append a number at the last position and return its node.
+  #
+  # This is a O(log n) operation.
   def append(num : Int64) : Node
     node = Node.new(num)
     insert(node, size)
     node
   end
 
+  # Insert a node at the given position.
+  #
+  # This is a O(log n) operation.
   def insert(node : Node, pos : Int32)
     node.reset
     if (root = @root).nil?
@@ -108,9 +119,10 @@ class Tree
     rebalance(u, true)
   end
 
-  # Remove a node from the tree and return its position
-  def remove(node : Node) : Int32
-    pos = position(node)
+  # Remove a node from the tree
+  #
+  # This is a O(log n) operation.
+  def remove(node : Node) : self
     if node.left && node.right
       # node has two children, find successor
       u = node.right.not_nil!
@@ -203,7 +215,7 @@ class Tree
         u = p
       else
         @root = u.right
-        return pos
+        return self
       end
     elsif u.right.nil?
       if p = u.parent
@@ -218,7 +230,7 @@ class Tree
         u = p
       else
         @root = u.left
-        return pos
+        return self
       end
     end
 
@@ -230,11 +242,18 @@ class Tree
 
     rebalance(u, false)
 
-    pos
+    self
+  end
+
+  # Find the node at position `pos`.
+  #
+  # This is a O(log n) operation.
+  def find(pos : Int32) : Node
+    search(pos)
   end
 
   # Search for node with a given position.
-  def search(pos : Int32, node : Node = @root.not_nil!) : Node
+  private def search(pos : Int32, node : Node = @root.not_nil!) : Node
     while node
       left_size = node.left.try(&.size) || 0
       if pos == left_size
@@ -249,7 +268,10 @@ class Tree
     raise "Node at position #{pos} not found"
   end
 
-  def rebalance(x : Node, ins : Bool)
+  # Rebalance node `x` and parent nodes.
+  #
+  # - `ins` should be true if rebalancing after insertion
+  private def rebalance(x : Node, ins : Bool)
     while x
       if x.balance == 2
         y = x.right.not_nil!
@@ -393,51 +415,6 @@ class Tree
       x = p
     end
   end
-
-  def to_s(io)
-    print_tree(io, @root, 0)
-  end
-
-  def print_node(node)
-    print_tree(STDOUT, node, 0)
-  end
-
-  def verify(node = @root)
-    return if node.nil?
-    if p = node.parent
-      raise "Invalid child" unless p.left == node || p.right == node
-    else
-      raise "Invalid root" unless @root == node
-    end
-    raise "Invalid left child parent #{node.num}" if (l = node.left) && l.parent != node
-    raise "Invalid right child parent #{node.num}" if (r = node.right) && r.parent != node
-    verify(node.left)
-    verify(node.right)
-  end
-
-  def verify_size(node = @root) : Int32
-    return 0 if node.nil?
-    left_size = verify_size(node.left)
-    right_size = verify_size(node.right)
-    s = left_size + right_size + 1
-    raise "Invalid size for node #{node.num}" if s != node.size
-    s
-  end
-
-  def verify_balance(node = @root) : Int32
-    return 0 if node.nil?
-    h_left = verify_balance(node.left)
-    h_right = verify_balance(node.right)
-    raise "Invalid balance at #{node.num}" if (h_right - h_left).sign != node.balance
-    {h_left, h_right}.max + 1
-  end
-
-  private def print_tree(io, node, level)
-    return unless node
-    print_tree(io, node.right, level + 1)
-    io << (" " * (2 * level)) << level << ":[" << node.num << " s:" << node.size << " b:" << node.balance << "]" << "\n"
-    print_tree(io, node.left, level + 1)
-  end
 end
 
 indata = ARGF.each_line.map(&.to_i64).to_a
@@ -449,12 +426,13 @@ indata = ARGF.each_line.map(&.to_i64).to_a
   n = (nodes.size - 1).to_i64
   reps.times do
     nodes.each do |node|
-      i = tree.remove(node)
+      i = tree.position(node)
+      tree.remove(node)
       tree.insert(node, ((i.to_i64 + node.num).to_i64 % n).to_i32)
     end
   end
 
   zero = tree.position(nodes.find!(&.num.zero?))
-  score = {1000, 2000, 3000}.map { |i| tree.search((zero + i) % nodes.size).num }.sum
+  score = {1000, 2000, 3000}.map { |i| tree.find((zero + i) % nodes.size).num }.sum
   puts "Part #{part}: #{score}"
 end
