@@ -155,24 +155,18 @@ class Tree
         node.size, u.size = u.size, node.size
       else
         # exchange node and u
-        # puts "EXCH #{node.num} #{u.num}"
-
         n_parent = node.parent
         n_left = node.left
         n_right = node.right
 
-        u_parent = u.parent
+        u_parent = u.parent.not_nil!
         u_left = u.left
         u_right = u.right
 
-        if u_parent
-          if u_parent.left == u
-            u_parent.left = node
-          else
-            u_parent.right = node
-          end
+        if u_parent.left == u
+          u_parent.left = node
         else
-          @root = node
+          u_parent.right = node
         end
         node.parent = u_parent
 
