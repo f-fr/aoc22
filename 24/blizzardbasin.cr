@@ -61,9 +61,10 @@ class Blizzards
     @blizs.rotate!(-1)
   end
 
-  def search(from, to)
-    q = Deque{from}
-    seen = {from => 0}
+  def search(from : {Int32, Int32}, to : {Int32, Int32}, *, from_iter : Int32 = 0)
+    from_iter = from_iter % @nloop
+    q = Deque{ {from[0], from[1], from_iter} }
+    seen = { {from[0], from[1], from_iter} => 0 }
     while u = q.shift?
       x, y, i = u
       d = seen[{x, y, i}]
@@ -72,7 +73,7 @@ class Blizzards
         nx = x + dx
         ny = y + dy
         return d + 1 if to == {nx, ny}
-        if (((1 <= nx <= @sizex) && (1 <= ny <= @sizey)) || {nx, ny} == {from[0], from[1]}) && !seen.has_key?({nx, ny, ni}) && !@blizs[ni].has_key?({nx, ny})
+        if (((1 <= nx <= @sizex) && (1 <= ny <= @sizey)) || {nx, ny} == from) && !seen.has_key?({nx, ny, ni}) && !@blizs[ni].has_key?({nx, ny})
           seen[{nx, ny, ni}] = d + 1
           q << {nx, ny, ni}
         end
@@ -83,10 +84,16 @@ class Blizzards
   end
 end
 
-s = {map[0].index!('.'), 0, 0}
+s = {map[0].index!('.'), 0}
 e = {map[-1].index!('.'), map.size - 1}
 
 b = Blizzards.new(map)
 score1 = b.search(s, e)
+raise "No path found" unless score1
 
 puts "Part 1: #{score1}"
+
+d = b.search(e, s, from_iter: score1)
+raise "No backward path found" unless d
+score2 = b.search(s, e, from_iter: score1 + d).not_nil! + score1 + d
+puts "Part 2: #{score2}"
