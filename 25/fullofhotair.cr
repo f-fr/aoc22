@@ -33,13 +33,16 @@ end
 def to_snafu(n : Int64)
   ndigit = Math.log(n, 5).ceil.to_i64 + 1
   n += ndigit.times.reduce(0i64) { |x, _| x*5 + 2 }
-  digits = String.build do |b|
-    while n != 0
-      b << {'=', '-', '0', '1', '2'}[n % 5]
-      n //= 5
+  digits = n.to_s(base: 5).chars.map { |ch|
+    case ch
+    when '0' then '='
+    when '1' then '-'
+    when '2' then '0'
+    when '3' then '1'
+    when '4' then '2'
+    else          raise "Invalid digit"
     end
-  end
-  digits.reverse.lstrip('0')
+  }.join.lstrip('0')
 end
 
 score1 = to_snafu(ARGF.each_line.map { |n| from_snafu(n) }.sum)
