@@ -22,7 +22,7 @@ Scissors = {
 
 total_score = ARGF.each_line.map do |line|
   opp, me = line.split
-  opp = Scissors[opp] || raise "Invalid input: #{opp}"
+  opp = Scissors[opp]? || raise "Invalid input: #{opp}"
   me = Scissors[me]? || raise "Invalid input: #{me}"
 
   me + case (me - opp) % 3
